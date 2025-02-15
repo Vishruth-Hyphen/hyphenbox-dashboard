@@ -1,10 +1,11 @@
 'use client'
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 declare const chrome: any;
-export default function CallbackPage() {
+
+function CallbackContent() {
   const supabase = createClientComponentClient()
   const searchParams = useSearchParams()
   const extensionId = searchParams.get('extensionId')
@@ -47,10 +48,18 @@ export default function CallbackPage() {
   }, [extensionId])
 
   return (
+    <div className="text-center">
+      <p className="text-lg">{status}</p>
+    </div>
+  )
+}
+
+export default function CallbackPage() {
+  return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="text-center">
-        <p className="text-lg">{status}</p>
-      </div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <CallbackContent />
+      </Suspense>
     </div>
   )
 }
