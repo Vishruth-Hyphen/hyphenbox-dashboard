@@ -7,12 +7,7 @@ import { useEffect, useState } from 'react'
 
 export default function AuthPage() {
   const supabase = createClientComponentClient()
-  const [origin, setOrigin] = useState('')
   const [extensionId, setExtensionId] = useState('')
-
-  useEffect(() => {
-    setOrigin(window.location.origin)
-  }, [])
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -33,7 +28,7 @@ export default function AuthPage() {
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
             providers={['google']}
-            redirectTo={origin ? `${origin}/callback?extensionId=${extensionId}` : undefined}
+            redirectTo={`${window.location.origin}/callback?extensionId=${extensionId}`}
             theme="dark"
             showLinks={false}
             view="sign_in"
