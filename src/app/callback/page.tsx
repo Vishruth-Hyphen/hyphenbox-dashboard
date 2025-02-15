@@ -36,6 +36,11 @@ export default function AuthPage() {
                     accessToken: session.access_token
                   }
                 });
+                
+                // Close the window after successful message send
+                setTimeout(() => {
+                  window.close();
+                }, 1000); // Small delay to ensure message is sent
               }
             });
 
