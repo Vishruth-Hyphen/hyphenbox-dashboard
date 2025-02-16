@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Hyphenbox Dashboard",
+  title: "VoxiGuide Dashboard",
   description: "Manage / Create your walkthroughs",
 };
 
@@ -18,10 +13,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geist.className} antialiased`}>
-        <div className="min-h-screen bg-background">
-          {children}
-        </div>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com"/>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+      </head>
+      <body className="antialiased bg-default-background text-default-font">
+        {children}
       </body>
     </html>
   );
