@@ -14,6 +14,7 @@ import ReactMarkdown from 'react-markdown';
 import { walkthroughService, type Walkthrough } from '@/lib/walkthroughs';
 import { Progress } from "@/subframe/components/Progress";
 import { IconWithBackground } from "@/subframe/components/IconWithBackground";
+import { Dialog } from "@/subframe/components/Dialog";
 
 export default function WalkthroughsPage() {
   const [walkthroughs, setWalkthroughs] = useState<Walkthrough[]>([]);
@@ -28,6 +29,11 @@ export default function WalkthroughsPage() {
       walkthroughService.cleanup();
     };
   }, []);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [walkthoughToRename, setWalkthroughToRename] = useState<Walkthrough | null>(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   useEffect(() => {
     async function checkAuthAndFetchWalkthroughs() {
@@ -139,6 +145,36 @@ export default function WalkthroughsPage() {
     </HomeListItem>
   );
 
+  const handleRename = async (walkthrough: Walkthrough) => {
+    try {
+      await walkthroughService.renameWalkthrough(walkthrough.id, newTitle);
+      setWalkthroughs(walkthroughs.map(w => 
+        w.id === walkthrough.id ? { ...w, title: newTitle } : w
+      ));
+      if (selectedWalkthrough?.id === walkthrough.id) {
+        setSelectedWalkthrough({ ...selectedWalkthrough, title: newTitle });
+      }
+      setIsRenaming(false);
+      setWalkthroughToRename(null);
+      setNewTitle('');
+    } catch (error) {
+      console.error('Error renaming walkthrough:', error);
+    }
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      await walkthroughService.renameWalkthrough(id, editingTitle);
+      setWalkthroughs(walkthroughs.map(w => 
+        w.id === id ? { ...w, title: editingTitle } : w
+      ));
+      setEditingId(null);
+      setEditingTitle('');
+    } catch (error) {
+      console.error('Error renaming walkthrough:', error);
+    }
+  };
+
   if (loading) {
     return (
       <DefaultPageLayout>
@@ -175,7 +211,86 @@ export default function WalkthroughsPage() {
               />
             ) : (
               <div className="flex flex-col gap-2">
-                {walkthroughs.map((walkthrough) => renderWalkthroughItem(walkthrough))}
+                {walkthroughs.map((walkthrough) => (
+                  <HomeListItem
+                    key={walkthrough.id}
+                    icon="FeatherFileText"
+                    title={walkthrough.id === editingId ? (
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleSaveEdit(walkthrough.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(walkthrough.id);
+                          if (e.key === 'Escape') {
+                            setEditingId(null);
+                            setEditingTitle('');
+                          }
+                        }}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                        autoFocus
+                      />
+                    ) : (
+                      walkthrough.title
+                    )}
+                    subtitle={`Last edited ${new Date(walkthrough.created_at).toLocaleDateString()}`}
+                    metadata={
+                      <div className="min-w-[100px] text-center">
+                        {walkthrough.step_count ? `${walkthrough.step_count} steps` : 'No steps'}
+                      </div>
+                    }
+                    onClick={() => setSelectedWalkthrough(walkthrough)}
+                  >
+                    <SubframeCore.DropdownMenu.Root>
+                      <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                        <IconButton
+                          icon="FeatherMoreHorizontal"
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        />
+                      </SubframeCore.DropdownMenu.Trigger>
+                      <SubframeCore.DropdownMenu.Portal>
+                        <SubframeCore.DropdownMenu.Content
+                          side="bottom"
+                          align="end"
+                          sideOffset={4}
+                          asChild={true}
+                        >
+                          <DropdownMenu>
+                            <DropdownMenu.DropdownItem 
+                              icon="FeatherEdit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingId(walkthrough.id);
+                                setEditingTitle(walkthrough.title);
+                              }}
+                            >
+                              Rename
+                            </DropdownMenu.DropdownItem>
+                            <DropdownMenu.DropdownItem 
+                              icon="FeatherDownload"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(walkthrough);
+                              }}
+                            >
+                              Download
+                            </DropdownMenu.DropdownItem>
+                            <DropdownMenu.DropdownItem 
+                              icon="FeatherTrash" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(walkthrough);
+                              }}
+                            >
+                              Delete
+                            </DropdownMenu.DropdownItem>
+                          </DropdownMenu>
+                        </SubframeCore.DropdownMenu.Content>
+                      </SubframeCore.DropdownMenu.Portal>
+                    </SubframeCore.DropdownMenu.Root>
+                  </HomeListItem>
+                ))}
               </div>
             )}
           </div>
@@ -187,10 +302,7 @@ export default function WalkthroughsPage() {
                 <span className="text-heading-1 font-heading-1 text-default-font">
                   {selectedWalkthrough.title}
                 </span>
-                <span className="text-body font-body text-subtext-color">
-                  Created: {new Date(selectedWalkthrough.created_at).toLocaleDateString()}
-                </span>
-                <Progress />
+
               </div>
               <div className="flex w-full flex-col items-start gap-8">
                 <ReactMarkdown
@@ -200,9 +312,11 @@ export default function WalkthroughsPage() {
                     h2: ({ children }) => (
                       <span className="text-heading-3 font-heading-3 text-default-font">{children}</span>
                     ),
-                    p: ({ children }) => (
-                      <span className="text-body font-body text-default-font">{children}</span>
-                    ),
+                    p: ({ children, node, ...props }) => {
+                      return (
+                        <span className="text-body font-body text-default-font">{children}</span>
+                      );
+                    },
                     img: ({ src, alt }) => (
                       <img
                         src={src}
