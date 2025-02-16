@@ -12,6 +12,8 @@ function CallbackContent() {
   const [status, setStatus] = useState('Completing authentication...')
 
   useEffect(() => {
+    let port: any = null;
+
     async function handleCallback() {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -21,7 +23,7 @@ function CallbackContent() {
         if (session && extensionId) {
           try {
             // Connect to the extension
-            const port = chrome.runtime.connect(extensionId)
+            port = chrome.runtime.connect(extensionId, { name: 'auth-connection' });
             
             // Send auth data to extension
             port.postMessage({ 
@@ -29,39 +31,68 @@ function CallbackContent() {
               userData: {
                 userId: session.user.id,
                 email: session.user.email,
-                accessToken: session.access_token
+                accessToken: session.access_token,
+                name: session.user.user_metadata?.full_name,
+                avatar: session.user.user_metadata?.avatar_url,
+                provider: session.user.app_metadata?.provider
               }
-            })
+            });
 
-            // Wait for confirmation from extension before closing
+            // Listen for response
             port.onMessage.addListener((response: any) => {
+              console.log('Received response from extension:', response);
               if (response.success) {
-                window.close()
+                setStatus(`
+                  Authentication successful! ✅
+                  Click the extension icon in your toolbar to open VoxiGuide.
+                `);
+                // Optional: Don't auto-close, let user read the message
+                // setTimeout(() => {
+                //   try {
+                //     window.close();
+                //   } catch (e) {...}
+                // }, 1000);
               } else {
-                setStatus('Failed to authenticate with extension.')
+                setStatus(`Authentication failed: ${response.error || 'Unknown error'}`);
               }
-            })
-          } catch (error) {
-            setStatus('Failed to connect to extension. Please ensure it is installed.')
-            console.error('Extension connection error:', error)
+            });
+
+            // Handle disconnection
+            port.onDisconnect.addListener(() => {
+              console.log('Port disconnected');
+              if (chrome.runtime.lastError) {
+                setStatus(`Connection error: ${chrome.runtime.lastError.message}`);
+              }
+            });
+
+          } catch (error: any) {
+            setStatus(`Failed to connect to extension: ${error.message}`);
+            console.error('Extension connection error:', error);
           }
         } else {
-          setStatus('Authentication failed. Please try again.')
+          setStatus('Authentication failed: No session or extension ID');
         }
-      } catch (error) {
-        setStatus('Authentication error. Please try again.')
-        console.error('Auth error:', error)
+      } catch (error: any) {
+        setStatus(`Authentication error: ${error.message}`);
+        console.error('Auth error:', error);
       }
     }
 
-    handleCallback()
-  }, [extensionId, supabase.auth])
+    handleCallback();
+
+    // Cleanup
+    return () => {
+      if (port) {
+        port.disconnect();
+      }
+    };
+  }, [extensionId, supabase.auth]);
 
   return (
     <div className="text-center">
       <p className="text-lg">{status}</p>
     </div>
-  )
+  );
 }
 
 export default function CallbackPage() {
