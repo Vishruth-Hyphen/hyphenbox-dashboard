@@ -9,6 +9,8 @@ export default function AuthPage() {
   const supabase = createClientComponentClient()
   const [extensionId, setExtensionId] = useState('')
 
+  console.log('Current NODE_ENV:', process.env.NODE_ENV)
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
@@ -28,7 +30,7 @@ export default function AuthPage() {
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
             providers={['google']}
-            redirectTo={`${window.location.origin}/callback?extensionId=${extensionId}`}
+            redirectTo={(process.env.NEXT_PUBLIC_REDIRECT_URL || 'http://localhost:3000') + `/callback?extensionId=${extensionId}`}
             theme="dark"
             showLinks={false}
             view="sign_in"
