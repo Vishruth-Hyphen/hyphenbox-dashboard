@@ -13,39 +13,49 @@ function CallbackContent() {
 
   useEffect(() => {
     async function handleCallback() {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session && extensionId) {
-        try {
-          // Connect to the extension
-          const port = chrome.runtime.connect(extensionId)
-          
-          // Send auth data to extension
-          port.postMessage({ 
-            type: 'SIGN_IN_SUCCESS',
-            userData: {
-              userId: session.user.id,
-              email: session.user.email,
-              accessToken: session.access_token
-            }
-          })
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) throw error;
+        
+        if (session && extensionId) {
+          try {
+            // Connect to the extension
+            const port = chrome.runtime.connect(extensionId)
+            
+            // Send auth data to extension
+            port.postMessage({ 
+              type: 'SIGN_IN_SUCCESS',
+              userData: {
+                userId: session.user.id,
+                email: session.user.email,
+                accessToken: session.access_token
+              }
+            })
 
-          // Close this tab after a brief delay
-          setTimeout(() => {
-            window.close()
-          }, 1000)
-
-          setStatus('Authentication successful! This window will close automatically...')
-        } catch (error) {
-          setStatus('Failed to connect to extension. Please ensure it is installed.')
+            // Wait for confirmation from extension before closing
+            port.onMessage.addListener((response: any) => {
+              if (response.success) {
+                window.close()
+              } else {
+                setStatus('Failed to authenticate with extension.')
+              }
+            })
+          } catch (error) {
+            setStatus('Failed to connect to extension. Please ensure it is installed.')
+            console.error('Extension connection error:', error)
+          }
+        } else {
+          setStatus('Authentication failed. Please try again.')
         }
-      } else {
-        setStatus('Authentication failed. Please try again.')
+      } catch (error) {
+        setStatus('Authentication error. Please try again.')
+        console.error('Auth error:', error)
       }
     }
 
     handleCallback()
-  }, [extensionId])
+  }, [extensionId, supabase.auth])
 
   return (
     <div className="text-center">

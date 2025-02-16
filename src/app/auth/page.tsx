@@ -4,12 +4,26 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function AuthPage() {
   const supabase = createClientComponentClient()
+  const router = useRouter()
   const [extensionId, setExtensionId] = useState('')
 
-  console.log('Current NODE_ENV:', process.env.NODE_ENV)
+  const getURL = () => {
+    let url =
+      process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
+      process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
+      'http://localhost:3000'
+    
+    // Make sure to include `https://` when not localhost.
+    url = url.includes('localhost') ? url : url.startsWith('http') ? url : `https://${url}`
+    // Make sure to NOT include a trailing `/` for the callback
+    url = url.endsWith('/') ? url.slice(0, -1) : url
+    
+    return url
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -30,7 +44,7 @@ export default function AuthPage() {
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
             providers={['google']}
-            redirectTo={(process.env.NEXT_PUBLIC_REDIRECT_URL || 'http://localhost:3000') + `/callback?extensionId=${extensionId}`}
+            redirectTo={`${getURL()}/callback?extensionId=${extensionId}`}
             theme="dark"
             showLinks={false}
             view="sign_in"
