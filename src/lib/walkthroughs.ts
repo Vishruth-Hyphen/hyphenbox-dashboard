@@ -6,10 +6,16 @@ export interface Walkthrough {
   markdown_url: string;
   created_at: string;
   markdown_content?: string;
+  step_count?: number;
 }
 
 export class WalkthroughService {
   private supabase = createClientComponentClient();
+
+  private countSteps(markdown: string): number {
+    const stepMatches = markdown.match(/(?:^|\n)(?:##\s*)?Step\s+\d+/g);
+    return stepMatches ? stepMatches.length : 0;
+  }
 
   async fetchWalkthroughs(userId: string): Promise<Walkthrough[]> {
     const { data, error } = await this.supabase
@@ -29,7 +35,8 @@ export class WalkthroughService {
         try {
           const response = await fetch(walkthrough.markdown_url);
           const markdown_content = await response.text();
-          return { ...walkthrough, markdown_content };
+          const step_count = this.countSteps(markdown_content);
+          return { ...walkthrough, markdown_content, step_count };
         } catch (error) {
           console.error(`Error fetching markdown for ${walkthrough.id}:`, error);
           return walkthrough;

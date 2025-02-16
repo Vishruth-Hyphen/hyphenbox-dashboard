@@ -112,7 +112,11 @@ export default function WalkthroughsPage() {
                     icon="FeatherFileText"
                     title={walkthrough.title}
                     subtitle={`Last edited ${new Date(walkthrough.created_at).toLocaleDateString()}`}
-                    metadata={walkthrough.markdown_content ? `${walkthrough.markdown_content.length} characters` : ''}
+                    metadata={
+                      <div className="min-w-[100px] text-center">
+                        {walkthrough.step_count ? `${walkthrough.step_count} steps` : 'No steps'}
+                      </div>
+                    }
                     onClick={() => setSelectedWalkthrough(walkthrough)}
                   >
                     <SubframeCore.DropdownMenu.Root>
