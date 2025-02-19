@@ -67,6 +67,15 @@ export class WalkthroughService {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+
+  async renameWalkthrough(id: string, newTitle: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('walkthroughs')
+      .update({ title: newTitle })
+      .eq('id', id);
+
+    if (error) throw error;
+  }
 }
 
 export const walkthroughService = new WalkthroughService(); 
