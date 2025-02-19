@@ -22,6 +22,13 @@ export default function WalkthroughsPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      walkthroughService.cleanup();
+    };
+  }, []);
+
   useEffect(() => {
     async function checkAuthAndFetchWalkthroughs() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -34,6 +41,17 @@ export default function WalkthroughsPage() {
       try {
         const walkthroughsData = await walkthroughService.fetchWalkthroughs(session.user.id);
         setWalkthroughs(walkthroughsData);
+        
+        // Start polling for processing walkthroughs
+        walkthroughsData.forEach(walkthrough => {
+          if (walkthrough.status === 'processing') {
+            walkthroughService.startPolling(walkthrough, (updated) => {
+              setWalkthroughs(current => 
+                current.map(w => w.id === updated.id ? updated : w)
+              );
+            });
+          }
+        });
       } catch (error) {
         console.error('Error fetching walkthroughs:', error);
       } finally {
@@ -69,6 +87,57 @@ export default function WalkthroughsPage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  // Update the walkthrough item rendering to show processing state
+  const renderWalkthroughItem = (walkthrough: Walkthrough) => (
+    <HomeListItem
+      key={walkthrough.id}
+      icon={walkthrough.status === 'processing' ? 'FeatherLoader' : 'FeatherFileText'}
+      title={walkthrough.title}
+      subtitle={
+        walkthrough.status === 'processing' 
+          ? 'Processing walkthrough...' 
+          : `Last edited ${new Date(walkthrough.created_at).toLocaleDateString()}`
+      }
+      metadata={walkthrough.markdown_content ? `${walkthrough.markdown_content.length} characters` : ''}
+      onClick={() => setSelectedWalkthrough(walkthrough)}
+    >
+      <SubframeCore.DropdownMenu.Root>
+        <SubframeCore.DropdownMenu.Trigger asChild={true}>
+          <IconButton
+            icon="FeatherMoreHorizontal"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
+        </SubframeCore.DropdownMenu.Trigger>
+        <SubframeCore.DropdownMenu.Portal>
+          <SubframeCore.DropdownMenu.Content
+            side="bottom"
+            align="end"
+            sideOffset={4}
+            asChild={true}
+          >
+            <DropdownMenu>
+              <DropdownMenu.DropdownItem 
+                icon="FeatherDownload"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(walkthrough);
+                }}
+              >
+                Download
+              </DropdownMenu.DropdownItem>
+              <DropdownMenu.DropdownItem icon="FeatherTrash" onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(walkthrough);
+              }}>
+                Delete
+              </DropdownMenu.DropdownItem>
+            </DropdownMenu>
+          </SubframeCore.DropdownMenu.Content>
+        </SubframeCore.DropdownMenu.Portal>
+      </SubframeCore.DropdownMenu.Root>
+    </HomeListItem>
+  );
 
   if (loading) {
     return (
@@ -106,51 +175,7 @@ export default function WalkthroughsPage() {
               />
             ) : (
               <div className="flex flex-col gap-2">
-                {walkthroughs.map((walkthrough) => (
-                  <HomeListItem
-                    key={walkthrough.id}
-                    icon="FeatherFileText"
-                    title={walkthrough.title}
-                    subtitle={`Last edited ${new Date(walkthrough.created_at).toLocaleDateString()}`}
-                    metadata={walkthrough.markdown_content ? `${walkthrough.markdown_content.length} characters` : ''}
-                    onClick={() => setSelectedWalkthrough(walkthrough)}
-                  >
-                    <SubframeCore.DropdownMenu.Root>
-                      <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                        <IconButton
-                          icon="FeatherMoreHorizontal"
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        />
-                      </SubframeCore.DropdownMenu.Trigger>
-                      <SubframeCore.DropdownMenu.Portal>
-                        <SubframeCore.DropdownMenu.Content
-                          side="bottom"
-                          align="end"
-                          sideOffset={4}
-                          asChild={true}
-                        >
-                          <DropdownMenu>
-                            <DropdownMenu.DropdownItem 
-                              icon="FeatherDownload"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(walkthrough);
-                              }}
-                            >
-                              Download
-                            </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem icon="FeatherTrash" onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(walkthrough);
-                            }}>
-                              Delete
-                            </DropdownMenu.DropdownItem>
-                          </DropdownMenu>
-                        </SubframeCore.DropdownMenu.Content>
-                      </SubframeCore.DropdownMenu.Portal>
-                    </SubframeCore.DropdownMenu.Root>
-                  </HomeListItem>
-                ))}
+                {walkthroughs.map((walkthrough) => renderWalkthroughItem(walkthrough))}
               </div>
             )}
           </div>
