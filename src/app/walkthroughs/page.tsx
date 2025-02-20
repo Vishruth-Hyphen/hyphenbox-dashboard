@@ -15,7 +15,7 @@ import { walkthroughService, type Walkthrough } from '@/lib/walkthroughs';
 import { Progress } from "@/subframe/components/Progress";
 import { IconWithBackground } from "@/subframe/components/IconWithBackground";
 import { Dialog } from "@/subframe/components/Dialog";
-
+import { toast } from "@/subframe/components/Toast";
 export default function WalkthroughsPage() {
   const [walkthroughs, setWalkthroughs] = useState<Walkthrough[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +34,7 @@ export default function WalkthroughsPage() {
   const [newTitle, setNewTitle] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     async function checkAuthAndFetchWalkthroughs() {
@@ -187,22 +188,21 @@ export default function WalkthroughsPage() {
 
   return (
     <DefaultPageLayout>
-      <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
-        <div className="flex w-full items-center gap-2">
-          <span className="grow shrink-0 basis-0 text-heading-3 font-heading-3 text-default-font">
-            Guides
-          </span>
-          <Button
-            icon="FeatherPlus"
-            onClick={() => router.push('/auth')}
-          >
-            Create Guide
-          </Button>
-        </div>
+      {/* Full-width header */}
+      <div className="flex w-full items-center justify-between p-6 pt-8 border-b border-border-color">
+        <h1 className="text-heading-2 font-heading-2 text-default-font">
+          Guides
+        </h1>
+        <Button onClick={() => router.push('/auth')}>
+          Create Guide
+        </Button>
+      </div>
 
-        <div className="flex w-full gap-8">
-          {/* Left side: List of walkthroughs */}
-          <div className="w-1/3 flex flex-col gap-4">
+      {/* Main content area */}
+      <div className="flex h-[calc(100vh-6rem)] w-full gap-16 p-6 pt-8">
+        {/* Left sidebar - fixed */}
+        <div className="w-1/3 flex-shrink-0 overflow-hidden">
+          <div className="flex w-full flex-col items-start gap-4">
             {walkthroughs.length === 0 ? (
               <HomeCard
                 title="Create new guide"
@@ -210,111 +210,157 @@ export default function WalkthroughsPage() {
                 icon="FeatherFileText"
               />
             ) : (
-              <div className="flex flex-col gap-2">
-                {walkthroughs.map((walkthrough) => (
-                  <HomeListItem
-                    key={walkthrough.id}
-                    icon="FeatherFileText"
-                    title={walkthrough.id === editingId ? (
-                      <input
-                        type="text"
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
-                        onBlur={() => handleSaveEdit(walkthrough.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit(walkthrough.id);
-                          if (e.key === 'Escape') {
-                            setEditingId(null);
-                            setEditingTitle('');
-                          }
-                        }}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2"
-                        autoFocus
+              walkthroughs.map((walkthrough) => (
+                <HomeListItem
+                  key={walkthrough.id}
+                  icon="FeatherFileText"
+                  title={walkthrough.id === editingId ? (
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => handleSaveEdit(walkthrough.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEdit(walkthrough.id);
+                        if (e.key === 'Escape') {
+                          setEditingId(null);
+                          setEditingTitle('');
+                        }
+                      }}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                      autoFocus
+                    />
+                  ) : (
+                    walkthrough.title
+                  )}
+                  subtitle={`Last edited ${new Date(walkthrough.created_at).toLocaleDateString()}`}
+                  metadata={
+                    <div className="min-w-[100px] text-center">
+                      {walkthrough.step_count ? `${walkthrough.step_count} steps` : 'No steps'}
+                    </div>
+                  }
+                  onClick={() => setSelectedWalkthrough(walkthrough)}
+                >
+                  <SubframeCore.DropdownMenu.Root>
+                    <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                      <IconButton
+                        icon="FeatherMoreHorizontal"
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       />
-                    ) : (
-                      walkthrough.title
-                    )}
-                    subtitle={`Last edited ${new Date(walkthrough.created_at).toLocaleDateString()}`}
-                    metadata={
-                      <div className="min-w-[100px] text-center">
-                        {walkthrough.step_count ? `${walkthrough.step_count} steps` : 'No steps'}
-                      </div>
-                    }
-                    onClick={() => setSelectedWalkthrough(walkthrough)}
-                  >
-                    <SubframeCore.DropdownMenu.Root>
-                      <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                        <IconButton
-                          icon="FeatherMoreHorizontal"
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        />
-                      </SubframeCore.DropdownMenu.Trigger>
-                      <SubframeCore.DropdownMenu.Portal>
-                        <SubframeCore.DropdownMenu.Content
-                          side="bottom"
-                          align="end"
-                          sideOffset={4}
-                          asChild={true}
-                        >
-                          <DropdownMenu>
-                            <DropdownMenu.DropdownItem 
-                              icon="FeatherEdit"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingId(walkthrough.id);
-                                setEditingTitle(walkthrough.title);
-                              }}
-                            >
-                              Rename
-                            </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem 
-                              icon="FeatherDownload"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(walkthrough);
-                              }}
-                            >
-                              Download
-                            </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem 
-                              icon="FeatherTrash" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(walkthrough);
-                              }}
-                            >
-                              Delete
-                            </DropdownMenu.DropdownItem>
-                          </DropdownMenu>
-                        </SubframeCore.DropdownMenu.Content>
-                      </SubframeCore.DropdownMenu.Portal>
-                    </SubframeCore.DropdownMenu.Root>
-                  </HomeListItem>
-                ))}
-              </div>
+                    </SubframeCore.DropdownMenu.Trigger>
+                    <SubframeCore.DropdownMenu.Portal>
+                      <SubframeCore.DropdownMenu.Content
+                        side="bottom"
+                        align="end"
+                        sideOffset={4}
+                        asChild={true}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenu.DropdownItem 
+                            icon="FeatherEdit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(walkthrough.id);
+                              setEditingTitle(walkthrough.title);
+                            }}
+                          >
+                            Rename
+                          </DropdownMenu.DropdownItem>
+                          <DropdownMenu.DropdownItem 
+                            icon="FeatherDownload"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(walkthrough);
+                            }}
+                          >
+                            Download
+                          </DropdownMenu.DropdownItem>
+                          <DropdownMenu.DropdownItem 
+                            icon="FeatherTrash" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(walkthrough);
+                            }}
+                          >
+                            Delete
+                          </DropdownMenu.DropdownItem>
+                        </DropdownMenu>
+                      </SubframeCore.DropdownMenu.Content>
+                    </SubframeCore.DropdownMenu.Portal>
+                  </SubframeCore.DropdownMenu.Root>
+                </HomeListItem>
+              ))
             )}
           </div>
+        </div>
 
-          {/* Right side: Walkthrough content */}
-          {selectedWalkthrough ? (
-            <div className="w-2/3 container max-w-none flex w-full grow shrink-0 basis-0 flex-col items-start gap-8 bg-default-background overflow-auto">
-              <div className="flex w-full flex-col items-start gap-4">
-                <span className="text-heading-1 font-heading-1 text-default-font">
-                  {selectedWalkthrough.title}
-                </span>
-
+        {/* Right preview - scrollable */}
+        {selectedWalkthrough ? (
+          <div className="w-2/3 h-full overflow-y-auto">
+            <div className="container max-w-none flex w-full flex-col items-start gap-8">
+              <div className="flex w-full items-center justify-between sticky top-0 bg-default-background py-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-body font-body text-subtext-color">
+                    Preview
+                  </span>
+                  <span className="text-heading-1 font-heading-1 text-default-font">
+                    {selectedWalkthrough.title}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <IconButton
+                    size="small"
+                    icon="FeatherCopy"
+                    onClick={() => {
+                      if (selectedWalkthrough) {
+                        walkthroughService.copyMarkdown(selectedWalkthrough, (copied) => {
+                          setIsCopied(copied);
+                        });
+                      }
+                    }}
+                  />
+                  <span className="text-body font-body text-subtext-color">
+                    {isCopied ? "Markdown Copied" : "Copy Markdown"}
+                  </span>
+                </div>
               </div>
               <div className="flex w-full flex-col items-start gap-8">
                 <ReactMarkdown
                   components={{
-                    // Skip the first h1 (title) since we're already showing it above
                     h1: () => null,
-                    h2: ({ children }) => (
-                      <span className="text-heading-3 font-heading-3 text-default-font">{children}</span>
-                    ),
-                    p: ({ children, node, ...props }) => {
+                    p: ({ children }) => {
+                      if (typeof children[0] === 'string' && children[0].startsWith('Created:')) {
+                        return null;
+                      }
                       return (
-                        <span className="text-body font-body text-default-font">{children}</span>
+                        <span className="text-body font-body text-default-font">
+                          {children}
+                        </span>
+                      );
+                    },
+                    h2: ({ children }) => {
+                      const stepText = Array.isArray(children) 
+                        ? children.join(' ') 
+                        : String(children);
+                      
+                      const stepMatch = stepText.match(/Step (\d+)/);
+                      const stepNumber = stepMatch ? stepMatch[1] : '';
+                      
+                      return (
+                        <div className="flex w-full items-center gap-6">
+                          <div className="group/c5d68c0e flex items-center justify-center rounded-full bg-brand-100 h-8 w-8">
+                            <span className="text-brand-800 text-body font-body">
+                              <IconWithBackground size="medium" icon="FeatherCheckCircle" />
+                            </span>
+                          </div>
+                          <div className="flex grow shrink-0 basis-0 flex-col items-start gap-4">
+                            <div className="flex w-full flex-col items-start gap-2">
+                              <span className="text-heading-3 font-heading-3 text-default-font">
+                                Step {stepNumber}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       );
                     },
                     img: ({ src, alt }) => (
@@ -324,26 +370,23 @@ export default function WalkthroughsPage() {
                         className="h-80 w-full flex-none rounded-md object-cover"
                       />
                     ),
-                    section: ({ children }) => (
-                      <div className="flex w-full items-start gap-6">
-                        <IconWithBackground size="medium" icon="FeatherCheckCircle" />
-                        <div className="flex grow shrink-0 basis-0 flex-col items-start gap-4">
-                          {children}
-                        </div>
-                      </div>
-                    ),
+                    li: ({ children }) => (
+                      <span className="text-body font-body text-default-font">
+                        {children}
+                      </span>
+                    )
                   }}
                 >
                   {selectedWalkthrough.markdown_content || 'Loading markdown content...'}
                 </ReactMarkdown>
               </div>
             </div>
-          ) : (
-            <div className="w-2/3 flex items-center justify-center text-subtext-color">
-              Select a guide to view its content
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="w-2/3 flex items-center justify-center text-subtext-color">
+            Select a guide to view its content
+          </div>
+        )}
       </div>
     </DefaultPageLayout>
   );

@@ -118,11 +118,44 @@ export class WalkthroughService {
 
   async renameWalkthrough(id: string, newTitle: string): Promise<void> {
     const { error } = await this.supabase
-      .from('walkthroughs')
+      .from('walkthroughs_v2')
       .update({ title: newTitle })
       .eq('id', id);
 
     if (error) throw error;
+  }
+
+  copyMarkdown(walkthrough: Walkthrough, onCopyStateChange?: (copied: boolean) => void): void {
+    if (!walkthrough.markdown_content) return;
+    
+    try {
+      navigator.clipboard.writeText(walkthrough.markdown_content);
+      // Signal that copy was successful
+      if (onCopyStateChange) {
+        onCopyStateChange(true);
+        // Reset after 3 seconds
+        setTimeout(() => {
+          onCopyStateChange(false);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Failed to copy markdown:', error);
+      // Fallback method if clipboard API fails
+      const textarea = document.createElement('textarea');
+      textarea.value = walkthrough.markdown_content;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      // Signal that copy was successful
+      if (onCopyStateChange) {
+        onCopyStateChange(true);
+        // Reset after 3 seconds
+        setTimeout(() => {
+          onCopyStateChange(false);
+        }, 3000);
+      }
+    }
   }
 }
 
