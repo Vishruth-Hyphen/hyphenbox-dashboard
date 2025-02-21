@@ -14,22 +14,30 @@ export default function AuthPageNew() {
   const [extensionId, setExtensionId] = useState('')
 
   const getURL = () => {
-    let url =
-      process?.env?.NEXT_PUBLIC_SITE_URL ??
-      process?.env?.NEXT_PUBLIC_VERCEL_URL ??
-      'http://localhost:3000'
-    
-    url = url.includes('localhost') ? url : url.startsWith('http') ? url : `https://${url}`
-    url = url.endsWith('/') ? url.slice(0, -1) : url
-    
-    return url
+    // For local development
+    if (window.location.hostname === 'localhost') {
+      return 'http://localhost:3000/';
+    }
+    // For production
+    return 'https://hyphenbox-dashboard-tawny.vercel.app/';
   }
 
   const handleGoogleSignIn = async () => {
+    const redirectUrl = `${getURL()}callback?extensionId=${extensionId}`;
+    console.log('Environment variables:', {
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
+    });
+    console.log('Redirect URL:', redirectUrl);
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${getURL()}/callback?extensionId=${extensionId}`
+        redirectTo: redirectUrl,
+        queryParams: {
+          // Force redirect to our callback
+          redirect_to: redirectUrl
+        }
       }
     })
 
