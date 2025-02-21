@@ -8,11 +8,17 @@ export interface Walkthrough {
   status: 'processing' | 'completed' | 'failed';
   markdown_content?: string;
   session_id: string;
+  step_count?: number;
 }
 
 export class WalkthroughService {
   private supabase = createClientComponentClient();
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
+
+  private countSteps(markdown: string): number {
+    const stepMatches = markdown.match(/(?:^|\n)(?:##\s*)?Step\s+\d+/g);
+    return stepMatches ? stepMatches.length : 0;
+  }
 
   async fetchWalkthroughs(userId: string): Promise<Walkthrough[]> {
     const { data, error } = await this.supabase
@@ -33,9 +39,11 @@ export class WalkthroughService {
           try {
             const response = await fetch(walkthrough.markdown_url);
             const markdown_content = await response.text();
-            return { ...walkthrough, markdown_content };
+            const step_count = this.countSteps(markdown_content);
+            return { ...walkthrough, markdown_content, step_count };
           } catch (error) {
             console.error(`Error fetching markdown for ${walkthrough.id}:`, error);
+            return walkthrough;
           }
         }
         return walkthrough;
@@ -106,6 +114,48 @@ export class WalkthroughService {
   cleanup() {
     this.pollingIntervals.forEach((interval) => clearInterval(interval));
     this.pollingIntervals.clear();
+  }
+
+  async renameWalkthrough(id: string, newTitle: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('walkthroughs_v2')
+      .update({ title: newTitle })
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  copyMarkdown(walkthrough: Walkthrough, onCopyStateChange?: (copied: boolean) => void): void {
+    if (!walkthrough.markdown_content) return;
+    
+    try {
+      navigator.clipboard.writeText(walkthrough.markdown_content);
+      // Signal that copy was successful
+      if (onCopyStateChange) {
+        onCopyStateChange(true);
+        // Reset after 3 seconds
+        setTimeout(() => {
+          onCopyStateChange(false);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Failed to copy markdown:', error);
+      // Fallback method if clipboard API fails
+      const textarea = document.createElement('textarea');
+      textarea.value = walkthrough.markdown_content;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      // Signal that copy was successful
+      if (onCopyStateChange) {
+        onCopyStateChange(true);
+        // Reset after 3 seconds
+        setTimeout(() => {
+          onCopyStateChange(false);
+        }, 3000);
+      }
+    }
   }
 }
 
