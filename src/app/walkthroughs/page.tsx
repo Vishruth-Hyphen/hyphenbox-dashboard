@@ -12,10 +12,10 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { walkthroughService, type Walkthrough } from '@/lib/walkthroughs';
-import { Progress } from "@/subframe/components/Progress";
+// import { Progress } from "@/subframe/components/Progress";
 import { IconWithBackground } from "@/subframe/components/IconWithBackground";
-import { Dialog } from "@/subframe/components/Dialog";
-import { toast } from "@/subframe/components/Toast";
+// import { Dialog } from "@/subframe/components/Dialog";
+// import { Toast } from "@/subframe/components/Toast";
 export default function WalkthroughsPage() {
   const [walkthroughs, setWalkthroughs] = useState<Walkthrough[]>([]);
   const [loading, setLoading] = useState(true);
@@ -329,7 +329,8 @@ export default function WalkthroughsPage() {
                   components={{
                     h1: () => null,
                     p: ({ children }) => {
-                      if (typeof children[0] === 'string' && children[0].startsWith('Created:')) {
+                      const firstChild = Array.isArray(children) ? children[0] : children;
+                      if (typeof firstChild === 'string' && firstChild.startsWith('Created:')) {
                         return null;
                       }
                       return (
