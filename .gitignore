@@ -36,3 +36,13 @@ next-env.d.ts
 
 # subframe
 .subframe/access-token
+
+# env
+.env
+.env.dev
+.env.local
+.env.test
+.env.production
+.env.staging
+.env.preview
+.env.development

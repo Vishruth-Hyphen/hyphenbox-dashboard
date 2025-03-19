@@ -2,8 +2,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Subframe Next.js Starter",
-  description: "Your starter kit for integrating Subframe into Next.js",
+  title: "Hyphenbox Dashboard",
+  description: "in-product contextual guidance for software products",
+  icons: {
+    icon: '/favicon.png', // or your preferred path
+  },
 };
 
 export default function RootLayout({

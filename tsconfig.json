@@ -28,6 +28,9 @@
       ],
       "@/subframe/*": [
         "./src/subframe/*"
+      ],
+      "@/ui/*": [
+        "src/ui/*"
       ]
     }
   },
