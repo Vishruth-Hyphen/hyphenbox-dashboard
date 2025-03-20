@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-
+import { uploadScreenshot } from "./uploadScreenshot";
 export interface CursorFlowStepData {
   id: string;
   flow_id: string;
@@ -72,7 +72,15 @@ export const createCursorFlowSteps = async (
     const batchSize = 10;
     for (let i = 0; i < steps.length; i += batchSize) {
       const batch = steps.slice(i, i + batchSize);
-      
+      for (const step of batch) {
+        // Insert any pre-processing code here
+        let screenshot = step["step_data"]["screenshot"]
+        if(screenshot){
+          let screenshot_url = await uploadScreenshot(screenshot['url'],'gazvscvowgdojkbkxnmk')
+          step['screenshot_url']=screenshot_url.url
+
+        }
+      }
       const { error } = await supabase
         .from('cursor_flow_steps')
         .insert(batch);
@@ -141,7 +149,6 @@ export const getCursorFlowWithSteps = async (flowId: string): Promise<{
     if (stepsError) {
       return { flow: flowData, steps: null, error: stepsError };
     }
-
     return { flow: flowData, steps: stepsData, error: null };
   } catch (error) {
     console.error('Error in getCursorFlowWithSteps:', error);
