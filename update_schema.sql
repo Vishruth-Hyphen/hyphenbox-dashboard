@@ -1,0 +1,1 @@
+ALTER TABLE cursor_flow_steps ADD COLUMN IF NOT EXISTS is_removed BOOLEAN DEFAULT FALSE;

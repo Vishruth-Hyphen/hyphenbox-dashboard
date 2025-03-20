@@ -1,0 +1,150 @@
+{
+    "recording": {
+      "id": "2025-03-06T15-37-fbc69n",
+      "startTime": "2025-03-06T15:37:33.748Z",
+      "lastUpdated": "2025-03-06T15:37:58.216Z",
+      "interactions": [
+        {
+          "type": "click",
+          "timestamp": "2025-03-06T15:37:43.150Z",
+          "timeOffset": null,
+          "pageInfo": {
+            "url": "https://kushalsm.com/",
+            "path": "/",
+            "title": "Kushal"
+          },
+          "element": {
+            "tagName": "A",
+            "id": null,
+            "textContent": "About",
+            "cssSelector": "a:contains(\"About\")",
+            "path": [
+              "#__next",
+              "div",
+              "header",
+              "div:nth-of-type(2)",
+              "div",
+              "a:nth-of-type(2)"
+            ]
+          },
+          "position": {
+            "x": 617,
+            "y": 39
+          },
+          "elementRect": {
+            "top": 32,
+            "left": 604.3203125,
+            "width": 52.7734375,
+            "height": 28.8046875
+          }
+        },
+        {
+          "type": "click",
+          "timestamp": "2025-03-06T15:37:45.522Z",
+          "timeOffset": null,
+          "pageInfo": {
+            "url": "https://kushalsm.com/about",
+            "path": "/about",
+            "title": "Kushal"
+          },
+          "element": {
+            "tagName": "A",
+            "id": null,
+            "textContent": "Writing",
+            "cssSelector": "a:contains(\"Writing\")",
+            "path": [
+              "#__next",
+              "div",
+              "header",
+              "div:nth-of-type(2)",
+              "div",
+              "a:nth-of-type(3)"
+            ]
+          },
+          "position": {
+            "x": 751,
+            "y": 53
+          },
+          "elementRect": {
+            "top": 32,
+            "left": 705.09375,
+            "width": 62.640625,
+            "height": 28.8046875
+          }
+        },
+        {
+          "type": "click",
+          "timestamp": "2025-03-06T15:37:47.275Z",
+          "timeOffset": null,
+          "pageInfo": {
+            "url": "https://kushalsm.com/writing",
+            "path": "/writing",
+            "title": "Kushal"
+          },
+          "element": {
+            "tagName": "A",
+            "id": null,
+            "textContent": "Ideas",
+            "cssSelector": "a:contains(\"Ideas\")",
+            "path": [
+              "#__next",
+              "div",
+              "main",
+              "div",
+              "div",
+              "div:nth-of-type(1)",
+              "a"
+            ]
+          },
+          "position": {
+            "x": 456,
+            "y": 176
+          },
+          "elementRect": {
+            "top": 148.8046875,
+            "left": 421.9375,
+            "width": 91.1328125,
+            "height": 56
+          }
+        },
+        {
+          "type": "click",
+          "timestamp": "2025-03-06T15:37:49.705Z",
+          "timeOffset": null,
+          "pageInfo": {
+            "url": "https://kushalsm.com/writing/ideas",
+            "path": "/writing/ideas",
+            "title": "Kushal"
+          },
+          "element": {
+            "tagName": "A",
+            "id": null,
+            "textContent": "An AI that is not controlled by the big companies",
+            "cssSelector": "a:contains(\"An AI that is not controlled by the big companies\")",
+            "path": [
+              "#__next",
+              "div",
+              "main",
+              "div",
+              "div",
+              "div:nth-of-type(2)",
+              "div:nth-of-type(4)",
+              "div",
+              "h2",
+              "a"
+            ]
+          },
+          "position": {
+            "x": 500,
+            "y": 503
+          },
+          "elementRect": {
+            "top": 488.9140625,
+            "left": 288,
+            "width": 501.6328125,
+            "height": 27.5
+          }
+        }
+      ]
+    }
+  }

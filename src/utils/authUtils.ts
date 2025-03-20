@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../lib/supabase';
 
 // Function to send magic link for email authentication
 export const sendMagicLink = async (email: string) => {

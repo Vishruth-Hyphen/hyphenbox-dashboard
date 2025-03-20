@@ -1,0 +1,323 @@
+import { supabase, type CursorFlow } from "../lib/supabase";
+import { type CursorFlowData } from "./cursorflows";
+
+export interface AudienceData {
+  id: string;
+  name: string;
+  description: string | null;
+  organization_id: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+/**
+ * Fix user ID format by removing the 'y' prefix if present
+ * @param userId - The user ID from the database
+ * @returns Properly formatted UUID
+ */
+const formatUserId = (userId: string): string => {
+  // If the ID starts with 'y', remove it
+  if (userId.startsWith('y')) {
+    return userId.substring(1);
+  }
+  return userId;
+};
+
+/**
+ * Fetch all audiences from the database
+ * @param organizationId - Optional organization ID to filter by
+ * @returns Promise with the fetched audiences
+ */
+export const fetchAudiences = async (
+  organizationId?: string
+): Promise<{
+  data: AudienceData[] | null;
+  error: any;
+}> => {
+  try {
+    let query = supabase.from('audiences').select('*');
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    
+    return { data, error };
+  } catch (error) {
+    console.error('Error in fetchAudiences:', error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Fetch cursor flows associated with an audience
+ * @param audienceId - The ID of the audience
+ * @returns Promise with the cursor flows
+ */
+export const fetchAudienceCursorFlows = async (
+  audienceId: string
+): Promise<{
+  data: CursorFlow[] | null;
+  error: any;
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from('cursor_flows')
+      .select('*')
+      .eq('audience_id', audienceId)
+      .order('created_at', { ascending: false });
+    
+    return { data, error };
+  } catch (error) {
+    console.error('Error in fetchAudienceCursorFlows:', error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Fetch cursor flows count for each audience
+ * @param audienceIds - Array of audience IDs
+ * @returns Promise with the audience IDs and their flow counts
+ */
+export const fetchAudienceFlowCounts = async (
+  audienceIds: string[]
+): Promise<{
+  data: Record<string, number> | null;
+  error: any;
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from('cursor_flows')
+      .select('audience_id, id')
+      .in('audience_id', audienceIds);
+    
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Count flows per audience
+    const counts: Record<string, number> = {};
+    audienceIds.forEach(id => { counts[id] = 0 });
+    
+    data.forEach(flow => {
+      if (flow.audience_id) {
+        counts[flow.audience_id] = (counts[flow.audience_id] || 0) + 1;
+      }
+    });
+    
+    return { data: counts, error: null };
+  } catch (error) {
+    console.error('Error in fetchAudienceFlowCounts:', error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Create a new audience
+ * @param audienceData - The audience data to create
+ * @returns Promise with the created audience ID
+ */
+export const createAudience = async (
+  audienceData: {
+    name: string;
+    description?: string;
+    organization_id: string;
+    created_by: string;
+  }
+): Promise<{
+  id: string | null;
+  error: any;
+}> => {
+  try {
+    // Format the user ID properly
+    const userId = formatUserId(audienceData.created_by);
+    
+    // Log the IDs for debugging
+    console.log('Creating audience with:', {
+      name: audienceData.name,
+      description: audienceData.description,
+      organization_id: audienceData.organization_id,
+      created_by: userId // Use the properly formatted ID
+    });
+    
+    const { data, error } = await supabase
+      .from('audiences')
+      .insert({
+        name: audienceData.name,
+        description: audienceData.description || null,
+        organization_id: audienceData.organization_id,
+        created_by: userId // Use the properly formatted ID
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating audience:', error);
+      return { id: null, error };
+    }
+
+    return { id: data.id, error: null };
+  } catch (error) {
+    console.error('Error in createAudience:', error);
+    return { id: null, error };
+  }
+};
+
+/**
+ * Update cursor flows to associate them with an audience
+ * @param audienceId - The ID of the audience
+ * @param flowIds - Array of cursor flow IDs to associate
+ * @returns Promise with success status
+ */
+export const associateFlowsWithAudience = async (
+  audienceId: string,
+  flowIds: string[]
+): Promise<{
+  success: boolean;
+  error?: any;
+}> => {
+  if (!flowIds.length) {
+    return { success: true };
+  }
+
+  try {
+    console.log('Associating flows with audience:', {
+      audienceId,
+      flowIds
+    });
+    
+    const { error } = await supabase
+      .from('cursor_flows')
+      .update({ audience_id: audienceId })
+      .in('id', flowIds);
+
+    if (error) {
+      console.error('Error associating flows with audience:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in associateFlowsWithAudience:', error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Create a new audience and associate cursor flows with it
+ * @param audienceData - The audience data to create
+ * @param flowIds - Array of cursor flow IDs to associate
+ * @returns Promise with success status and the created audience ID
+ */
+export const createAudienceWithFlows = async (
+  audienceData: {
+    name: string;
+    description?: string;
+    organization_id: string;
+    created_by: string;
+  },
+  flowIds: string[]
+): Promise<{
+  success: boolean;
+  audienceId: string | null;
+  error?: any;
+}> => {
+  try {
+    // Create the audience with properly formatted user ID
+    const { id: audienceId, error: createError } = await createAudience(audienceData);
+    
+    if (createError || !audienceId) {
+      return { success: false, audienceId: null, error: createError };
+    }
+    
+    // Associate flows with the audience
+    if (flowIds.length > 0) {
+      const { success, error: associateError } = await associateFlowsWithAudience(audienceId, flowIds);
+      
+      if (!success) {
+        return { success: false, audienceId, error: associateError };
+      }
+    }
+    
+    return { success: true, audienceId };
+  } catch (error) {
+    console.error('Error in createAudienceWithFlows:', error);
+    return { success: false, audienceId: null, error };
+  }
+};
+
+/**
+ * Remove a cursor flow from an audience
+ * @param flowId - The ID of the cursor flow to remove
+ * @returns Promise with success status
+ */
+export const removeFlowFromAudience = async (
+  flowId: string
+): Promise<{
+  success: boolean;
+  error?: any;
+}> => {
+  try {
+    console.log('Removing flow from audience:', {
+      flowId
+    });
+    
+    const { error } = await supabase
+      .from('cursor_flows')
+      .update({ audience_id: null })
+      .eq('id', flowId);
+
+    if (error) {
+      console.error('Error removing flow from audience:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in removeFlowFromAudience:', error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Add multiple cursor flows to an existing audience
+ * @param audienceId - The ID of the audience to add flows to
+ * @param flowIds - Array of cursor flow IDs to add to the audience
+ * @returns Promise with success status
+ */
+export const addFlowsToAudience = async (
+  audienceId: string,
+  flowIds: string[]
+): Promise<{
+  success: boolean;
+  error?: any;
+}> => {
+  try {
+    if (!flowIds.length) {
+      return { success: true }; // No flows to add
+    }
+    
+    console.log('Adding flows to audience:', {
+      audienceId,
+      flowIds
+    });
+    
+    // Update all the flows to have the audience_id
+    const { error } = await supabase
+      .from('cursor_flows')
+      .update({ audience_id: audienceId })
+      .in('id', flowIds);
+
+    if (error) {
+      console.error('Error adding flows to audience:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in addFlowsToAudience:', error);
+    return { success: false, error };
+  }
+}; 
