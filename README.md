@@ -1,5 +1,5 @@
 
-Hyphenbox Dashboard
+# Hyphenbox Dashboard
 
 ## ✨ Features
 
