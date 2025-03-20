@@ -1,19 +1,30 @@
-This is a [Subframe](https://subframe.com) Next.js Starter Kit that provides just enough configuration to get off and running with Subframe.
 
-## Getting Started
+Hyphenbox Dashboard
 
-First, install dependencies:
+## ✨ Features
+
+- **Flow Management** - Design and preview interactive cursor flows for your product onboarding
+- **Knowledge Hub** - Upload documents, add links, and organize all your team's resources in one central location
+- **Audience Segmentation** - Create targeted audiences and associate them with specific flows
+
+## 🚀 Getting Started
 
 ```bash
+# Install dependencies
 npm install
-```
 
-And then run the project:
-
-```bash
+# Run development server
 npm run dev
+
+# Build for production
+npm run build
 ```
 
-## Learn More
+## 🔧 Tech Stack
 
-Once running, you can Install Subframe locally by "syncing" Subframe with your Starter Kit. This is achieved by running the Subframe [Sync Command](https://app.subframe.com/library?component=installation)
+Built with Next.js, React, TypeScript, and Supabase, delivering a blazing-fast experience with real-time database capabilities.
+
+
+
+
+
