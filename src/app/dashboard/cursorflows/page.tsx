@@ -20,12 +20,12 @@ import {
   getBadgeVariantForStatus,
   deleteCursorFlow
 } from "@/utils/cursorflows";
-import { uploadScreenshotToSupabase } from "@/utils/screenshots";
-
-
 
 function CursorFlows() {
   const router = useRouter();
+  // Define organizationId once at the component level
+  const organizationId = '996b5d3d-801c-4619-8648-7e4d27deecf5';
+  
   // State to control the open/closed state of the upload dialog
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   // State to store cursor flows fetched from database
@@ -53,7 +53,8 @@ function CursorFlows() {
   const loadCursorFlows = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await fetchCursorFlowsWithAudiences();
+      // Use the organizationId defined at the component level
+      const { data, error } = await fetchCursorFlowsWithAudiences(organizationId);
       
       if (error) {
         console.error('Error fetching cursor flows:', error);
@@ -94,8 +95,7 @@ function CursorFlows() {
 
     setIsUploading(true);
     try {
-      // In a production app, these values would come from auth context
-      const organizationId = '5380e9d2-9adf-4338-b4f6-2e59b75d349d';
+      // Use the organizationId defined at the component level
       const userId = 'a0d6ba16-6093-4086-ad69-72df4c720010';
       
       const result = await processJsonForCursorFlow(

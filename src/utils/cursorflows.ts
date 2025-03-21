@@ -6,17 +6,24 @@ import {
 
 /**
  * Fetches all cursor flows from the database
+ * @param organizationId - Organization ID to filter by
  * @returns Promise with cursor flows data
  */
-export const fetchCursorFlows = async (): Promise<{
+export const fetchCursorFlows = async (organizationId?: string): Promise<{
   data: CursorFlow[] | null;
   error: any;
 }> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('cursor_flows')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*');
+    
+    // Filter by organization ID if provided
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
     
     return { data, error };
   } catch (error) {
@@ -465,15 +472,16 @@ export const getAudienceNameForFlow = async (
 
 /**
  * Fetch cursor flows with their audience names
+ * @param organizationId - Optional organization ID to filter by
  * @returns Promise with cursor flows data including audience names
  */
-export const fetchCursorFlowsWithAudiences = async (): Promise<{
+export const fetchCursorFlowsWithAudiences = async (organizationId?: string): Promise<{
   data: (CursorFlow & { audienceName: string })[] | null;
   error: any;
 }> => {
   try {
     // First fetch all flows
-    const { data: flowsData, error: flowsError } = await fetchCursorFlows();
+    const { data: flowsData, error: flowsError } = await fetchCursorFlows(organizationId);
     
     if (flowsError || !flowsData) {
       console.error('Error fetching cursor flows:', flowsError);
