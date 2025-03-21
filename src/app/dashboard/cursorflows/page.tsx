@@ -20,6 +20,9 @@ import {
   getBadgeVariantForStatus,
   deleteCursorFlow
 } from "@/utils/cursorflows";
+import { uploadScreenshotToSupabase } from "@/utils/screenshots";
+
+
 
 function CursorFlows() {
   const router = useRouter();
