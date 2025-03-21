@@ -14,7 +14,6 @@ import * as SubframeCore from "@subframe/core";
 import { 
   getCursorFlowWithSteps, 
   updateStepAnnotation, 
-  markStepAsRemoved,
   saveSteps,
   type CursorFlowStepData 
 } from "@/utils/cursorflowsteps";
@@ -28,7 +27,11 @@ import {
   getStepType,
   getNavigationUrl,
   getDisplayUrl,
-  truncateUrl
+  truncateUrl,
+  getCursorPosition,
+  getClickedText,
+  getElementTagName,
+  getCursorPositionPercentage
 } from "@/utils/element-utils";
 
 // Placeholder image when no screenshot is available
@@ -154,58 +157,6 @@ function CursorFlowPreview() {
     }
   };
 
-  // Function to remove a step
-  const removeStep = async (stepToRemove: CursorFlowStepData) => {
-    try {
-      // Mark step as removed in the database
-      const { success, error } = await markStepAsRemoved(stepToRemove.id);
-      
-      if (!success) {
-        console.error('Failed to mark step as removed:', error);
-        return;
-      }
-      
-      // Update local state to reflect the change
-      setSteps((prev: CursorFlowStepData[]) => 
-        prev.map(step => 
-          step.id === stepToRemove.id 
-            ? { ...step, is_removed: true } 
-            : step
-        )
-      );
-      
-      setHasUnsavedChanges(true);
-    } catch (error) {
-      console.error('Error removing step:', error);
-    }
-  };
-
-  // Function to restore a step
-  const restoreStep = async (stepToRestore: CursorFlowStepData) => {
-    try {
-      // Mark step as not removed in the database
-      const { success, error } = await markStepAsRemoved(stepToRestore.id, false);
-      
-      if (!success) {
-        console.error('Failed to restore step:', error);
-        return;
-      }
-      
-      // Update local state to reflect the change
-      setSteps((prev: CursorFlowStepData[]) => 
-        prev.map(step => 
-          step.id === stepToRestore.id 
-            ? { ...step, is_removed: false } 
-            : step
-        )
-      );
-      
-      setHasUnsavedChanges(true);
-    } catch (error) {
-      console.error('Error restoring step:', error);
-    }
-  };
-
   // Function to publish flow
   const publishFlow = async () => {
     if (!flowId) return;
@@ -276,9 +227,8 @@ function CursorFlowPreview() {
     router.push('/dashboard/cursorflows');
   };
 
-  // Get active and removed steps
+  // Get only active steps - we don't care about removed steps anymore
   const activeSteps = steps.filter(step => !step.is_removed);
-  const removedSteps = steps.filter(step => step.is_removed);
 
   // Helper function to get the "from" URL for navigation steps
   const getFromUrl = (step: any): string | null => {
@@ -348,6 +298,41 @@ function CursorFlowPreview() {
     );
   };
 
+  // Completely rewritten CursorOverlay component with proper text wrapping
+  const CursorOverlay = ({ step, text }: { step: any; text: string }) => {
+    const positionPercentage = getCursorPositionPercentage(step);
+    
+    if (!positionPercentage) return null;
+    
+    return (
+      <div 
+        className="absolute pointer-events-none"
+        style={{
+          left: `${positionPercentage.xPercent}%`,
+          top: `${positionPercentage.yPercent}%`,
+          transform: 'translate(-50%, -50%)'
+        }}
+      >
+        {/* Cursor pointer icon */}
+        <div className="relative">
+          <SubframeCore.Icon
+            name="FeatherMousePointer2"
+            className="text-brand-600 h-7 w-7 drop-shadow-md"
+          />
+          
+          {/* Text bubble with fixed width and proper word wrapping */}
+          {text && (
+            <div className="absolute left-8 top-0 w-48 rounded-md bg-brand-600 px-3 py-2 text-white shadow-md">
+              <p className="text-sm m-0 whitespace-normal break-words">
+                {text}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <InviteTeamMembers>
@@ -380,7 +365,7 @@ function CursorFlowPreview() {
     );
   }
 
-  // First, filter to get only click steps for the main display
+  // Filter to get only click steps for the main display
   const clickSteps = activeSteps.filter(step => getStepType(step) === 'click');
 
   return (
@@ -480,7 +465,7 @@ function CursorFlowPreview() {
           />
         )}
         
-        <div className="flex w-full grow shrink-0 basis-0 flex-wrap items-start gap-6">
+        <div className="flex w-full grow shrink-0 basis-0 flex-wrap items-start">
           <div className="flex min-w-[576px] grow shrink-0 basis-0 flex-col items-start gap-6">
             {clickSteps.length === 0 ? (
               <div className="flex w-full items-center justify-center p-8 border border-dashed border-neutral-border rounded-md">
@@ -501,23 +486,20 @@ function CursorFlowPreview() {
                         <span className="text-body-bold font-body-bold text-default-font">
                           Step {index + 1}
                         </span>
-                        {flow.status === 'draft' && (
-                          <Button
-                            variant="destructive-secondary"
-                            icon="FeatherTrash"
-                            onClick={() => removeStep(clickStep)}
-                          >
-                            Remove
-                          </Button>
-                        )}
                       </div>
                       <div className="flex w-full flex-col items-start gap-4 px-4 py-4">
                         {hasValidScreenshot(clickStep) ? (
-                          <img
-                            className="w-full grow shrink-0 basis-0 rounded-md object-cover"
-                            src={clickStep.screenshot_url || ''}
-                            alt={`Step ${index + 1}`}
-                          />
+                          <div className="relative w-full">
+                            <img
+                              className="w-full grow shrink-0 basis-0 rounded-md object-cover"
+                              src={clickStep.screenshot_url || ''}
+                              alt={`Step ${index + 1}`}
+                            />
+                            <CursorOverlay 
+                              step={clickStep} 
+                              text={stepTexts[clickStep.id] || ''} 
+                            />
+                          </div>
                         ) : (
                           <div className="w-full p-6 bg-neutral-50 rounded-md flex items-center justify-center">
                             <span className="text-body font-body text-subtext-color">
@@ -534,7 +516,11 @@ function CursorFlowPreview() {
                           <TextField.Input
                             placeholder="Add a description for this click"
                             value={stepTexts[clickStep.id] || ''}
-                            onChange={(e) => flow.status === 'draft' ? handleTextChange(clickStep.id, e.target.value) : null}
+                            onChange={(e) => {
+                              if (flow.status === 'draft') {
+                                handleTextChange(clickStep.id, e.target.value);
+                              }
+                            }}
                             onBlur={() => flow.status === 'draft' ? saveAnnotation(clickStep.id) : null}
                             disabled={flow.status !== 'draft'}
                             readOnly={flow.status !== 'draft'}
@@ -554,65 +540,6 @@ function CursorFlowPreview() {
                   </React.Fragment>
                 );
               })
-            )}
-          </div>
-          
-          <div className="flex w-80 flex-none flex-col items-start gap-6 rounded-md border border-solid border-neutral-border bg-default-background px-6 py-6 self-start">
-            <span className="text-heading-3 font-heading-3 text-default-font">
-              Removed Steps
-            </span>
-            {removedSteps.length === 0 ? (
-              <span className="text-body font-body text-subtext-color">No removed steps</span>
-            ) : (
-              <div className="flex w-full flex-col items-start gap-4">
-                {removedSteps.map((step, index) => {
-                  const stepType = getStepType(step);
-                  const showScreenshot = hasValidScreenshot(step);
-                  
-                  return (
-                    <div key={step.id} className="flex w-full items-center gap-4 rounded-md border border-solid border-neutral-border bg-neutral-50 px-4 py-4">
-                      {stepType === 'navigation' ? (
-                        <div className="h-16 w-16 flex-none rounded-sm bg-neutral-100 flex items-center justify-center">
-                          <span className="text-subtext-color">
-                            <SubframeCore.Icon name="FeatherGlobe" />
-                          </span>
-                        </div>
-                      ) : showScreenshot ? (
-                        <img
-                          className="h-16 w-16 flex-none rounded-sm object-cover"
-                          src={step.screenshot_url || ''}
-                          alt={`Removed Step ${index + 1}`}
-                        />
-                      ) : (
-                        <div className="h-16 w-16 flex-none rounded-sm bg-neutral-100 flex items-center justify-center">
-                          <span className="text-subtext-color">
-                            <SubframeCore.Icon name="FeatherImage" />
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex grow shrink-0 basis-0 flex-col items-start gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-body-bold font-body-bold text-default-font">
-                            Step {index + 1}
-                          </span>
-                          <Badge variant={stepType === 'click' ? 'neutral' : 'brand'}>
-                            {stepType.charAt(0).toUpperCase() + stepType.slice(1)}
-                          </Badge>
-                        </div>
-                        {flow.status === 'draft' && (
-                          <Button
-                            variant="neutral-secondary"
-                            size="small"
-                            onClick={() => restoreStep(step)}
-                          >
-                            Restore
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             )}
           </div>
         </div>

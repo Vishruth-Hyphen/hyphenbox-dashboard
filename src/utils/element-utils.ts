@@ -63,4 +63,59 @@ export const truncateUrl = (url: string | null): string => {
   // Split the URL at the first question mark and keep only the first part
   const truncatedUrl = url.split('?')[0];
   return truncatedUrl;
+};
+
+/**
+ * Extracts the cursor position from step data
+ * @param step The cursor flow step
+ * @returns An object with x and y coordinates, or null if not available
+ */
+export const getCursorPosition = (step: any): { x: number, y: number } | null => {
+  if (!step?.step_data?.position) return null;
+  
+  return {
+    x: step.step_data.position.x,
+    y: step.step_data.position.y
+  };
+};
+
+/**
+ * Gets the element text content from step data
+ * @param step The cursor flow step
+ * @returns The clicked element's text content or null if not available
+ */
+export const getClickedText = (step: any): string | null => {
+  return step?.step_data?.element?.textContent || null;
+};
+
+/**
+ * Gets the element type that was clicked
+ * @param step The cursor flow step
+ * @returns The tag name of the clicked element (e.g., "BUTTON", "DIV")
+ */
+export const getElementTagName = (step: any): string | null => {
+  return step?.step_data?.element?.tagName || null;
+};
+
+/**
+ * Calculates the cursor position as percentage values relative to the image size
+ * This is necessary to position the cursor overlay correctly regardless of image size
+ * @param position The cursor position in pixels
+ * @param elementRect The bounding rectangle of the clicked element
+ * @returns Position as percentage values of the container
+ */
+export const getCursorPositionPercentage = (
+  step: any
+): { xPercent: number, yPercent: number } | null => {
+  const position = getCursorPosition(step);
+  const rect = step?.step_data?.elementRect;
+  
+  if (!position || !rect) return null;
+  
+  // Get the position relative to the screenshot
+  // We need to calculate what percentage of the screenshot the cursor position represents
+  return {
+    xPercent: (position.x / window.innerWidth) * 100,
+    yPercent: (position.y / window.innerHeight) * 100
+  };
 }; 
