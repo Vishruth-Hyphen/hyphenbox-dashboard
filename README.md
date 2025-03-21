@@ -22,7 +22,7 @@ npm run build
 
 ## 🔧 Tech Stack
 
-Built with Next.js, React, TypeScript, and Supabase, delivering a blazing-fast experience with real-time database capabilities.
+Built with Next.js, React, TypeScript, and Supabase.
 
 
 
