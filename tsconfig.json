@@ -30,7 +30,7 @@
         "./src/subframe/*"
       ],
       "@/ui/*": [
-        "src/ui/*"
+        "./src/ui/*"
       ]
     }
   },
