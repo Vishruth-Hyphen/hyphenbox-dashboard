@@ -313,9 +313,6 @@ export const processAndSaveFlowRecording = async (
   error?: string;
 }> => {
   try {
-    // Import the function from cursorflowsteps
-    const { parseRecordingToSteps } = await import('./cursorflowsteps');
-    
     // Parse the JSON recording into step data
     const { stepData, error: parseError } = parseRecordingToSteps(flowId, jsonData);
     

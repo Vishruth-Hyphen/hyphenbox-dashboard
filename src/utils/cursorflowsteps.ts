@@ -28,21 +28,34 @@ export const parseRecordingToSteps = (flowId: string, jsonData: any): {stepData:
       };
     }
 
-    // Map each interaction to a step
-    const steps = jsonData.recording.interactions.map((interaction: any, index: number) => {
-      // Extract any text content from the interaction if available
-      const annotationText = interaction.element?.textContent || 
-                            `Step ${index + 1}: ${interaction.type} on ${interaction.pageInfo?.url || 'unknown page'}`;
-      
-      return {
-        flow_id: flowId,
-        position: (index + 1) * 1000, // 1000, 2000, 3000, etc.
-        step_data: interaction,
-        annotation_text: annotationText,
-        is_removed: false, // New field: steps start as not removed
-        screenshot_url: null // Screenshots would be handled separately
-      };
-    });
+    // Filter out navigation type interactions and map remaining interactions to steps
+    const steps = jsonData.recording.interactions
+      .filter((interaction: any) => interaction.type !== "navigation") // Skip navigation type interactions
+      .map((interaction: any, index: number) => {
+        // Create a deep copy of the interaction
+        const interactionCopy = JSON.parse(JSON.stringify(interaction));
+        
+        // Store the original screenshot information separately
+        const originalScreenshot = interactionCopy.screenshot;
+        
+        // Remove screenshot from the interaction copy
+        delete interactionCopy.screenshot;
+        delete interactionCopy.screenshots;
+        
+        // Extract any text content from the interaction if available
+        const annotationText = interaction.element?.textContent || 
+                              `Step ${index + 1}: ${interaction.type} on ${interaction.pageInfo?.url || 'unknown page'}`;
+        
+        return {
+          flow_id: flowId,
+          position: (index + 1) * 1000, // Use increments of 1000 for easier insertion/deletion
+          step_data: interactionCopy, // Use the cleaned version without screenshots
+          screenshot_url: null, // This will be set elsewhere if needed
+          annotation_text: annotationText,
+          is_removed: false, // New field: steps start as not removed
+          originalScreenshot: originalScreenshot, // Temporary property to hold screenshot data
+        };
+      });
 
     return { stepData: steps };
   } catch (error) {
@@ -68,26 +81,41 @@ export const createCursorFlowSteps = async (
   const errors: any[] = [];
   
   try {
+    // Handle empty steps array
+    if (!steps || steps.length === 0) {
+      return { success: true, errors: [] };
+    }
+    
     // Process steps in batches for better performance
     const batchSize = 10;
     for (let i = 0; i < steps.length; i += batchSize) {
       const batch = steps.slice(i, i + batchSize);
       for (const step of batch) {
-        // Insert any pre-processing code here
-        let screenshot = step["step_data"]["screenshot"]
-        if(screenshot){
-          let screenshot_url = await uploadScreenshot(screenshot['url'],'gazvscvowgdojkbkxnmk')
-          step['screenshot_url']=screenshot_url.url
-
+        // Extract screenshot URL if present in the original data
+        if (step.originalScreenshot && step.originalScreenshot.url) {
+          try {
+            let screenshot_url = await uploadScreenshot(step.originalScreenshot.url, 'gazvscvowgdojkbkxnmk');
+            step.screenshot_url = screenshot_url.url;
+          } catch (uploadError) {
+            console.error('Error uploading screenshot:', uploadError);
+            // Continue with the step even if the screenshot upload fails
+          }
         }
+        
+        // Remove the temporary originalScreenshot property before database insert
+        delete step.originalScreenshot;
       }
-      const { error } = await supabase
-        .from('cursor_flow_steps')
-        .insert(batch);
-
-      if (error) {
-        console.error('Error creating step batch:', error);
-        errors.push(error);
+      
+      // Only attempt to insert if there are steps in the batch
+      if (batch.length > 0) {
+        const { error } = await supabase
+          .from('cursor_flow_steps')
+          .insert(batch);
+  
+        if (error) {
+          console.error('Error creating step batch:', error);
+          errors.push(error);
+        }
       }
     }
 
