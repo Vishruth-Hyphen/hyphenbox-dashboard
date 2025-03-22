@@ -24,7 +24,7 @@ import {
 function CursorFlows() {
   const router = useRouter();
   // Define organizationId once at the component level
-  const organizationId = '996b5d3d-801c-4619-8648-7e4d27deecf5';
+  const organizationId = process.env.NEXT_PUBLIC_DEFAULT_ORGANIZATION_ID;
   
   // State to control the open/closed state of the upload dialog
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
