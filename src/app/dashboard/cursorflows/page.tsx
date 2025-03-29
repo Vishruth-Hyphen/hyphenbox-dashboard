@@ -18,8 +18,11 @@ import {
   fetchCursorFlowsWithAudiences,
   processJsonForCursorFlow, 
   getBadgeVariantForStatus,
-  deleteCursorFlow
+  deleteCursorFlow,
+  createCursorFlowRequest
 } from "@/utils/cursorflows";
+import { TextField } from "@/ui/components/TextField";
+import { TextArea } from "@/ui/components/TextArea";
 
 function CursorFlows() {
   const router = useRouter();
@@ -43,6 +46,14 @@ function CursorFlows() {
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [flowToDelete, setFlowToDelete] = useState<CursorFlow | null>(null);
+  
+  // New state for request flow modal
+  const [isRequestFlowDialogOpen, setIsRequestFlowDialogOpen] = useState(false);
+  const [requestFlowName, setRequestFlowName] = useState("");
+  const [requestFlowContext, setRequestFlowContext] = useState("");
+
+  // Add a new state variable for Flow ID
+  const [flowId, setFlowId] = useState("");
 
   // Fetch cursor flows on component mount
   useEffect(() => {
@@ -82,7 +93,13 @@ function CursorFlows() {
   };
 
   // Function to navigate to the preview page
-  const navigateToPreview = (flowId: string, flowName: string) => {
+  const navigateToPreview = (flowId: string, flowName: string, status: string) => {
+    // Don't navigate if the flow is in "requested" status
+    if (status === 'requested') {
+      alert('This flow is currently being created and is not yet available for preview.');
+      return;
+    }
+    
     router.push(`/dashboard/cursorflows/preview?flowId=${flowId}&name=${encodeURIComponent(flowName)}`);
   };
 
@@ -95,28 +112,29 @@ function CursorFlows() {
 
     setIsUploading(true);
     try {
-      // Use the organizationId defined at the component level
       const userId = 'a0d6ba16-6093-4086-ad69-72df4c720010';
       
+      // If flowId is provided, update existing flow. Otherwise, create a new one.
       const result = await processJsonForCursorFlow(
         selectedFile,
         flowName,
         organizationId,
-        userId
+        userId,
+        flowId.trim() || undefined // Pass undefined if empty string
       );
 
       if (!result.success) {
-        console.error('Error creating cursor flow:', result.error);
-        alert('Failed to create cursor flow');
+        console.error('Error processing cursor flow:', result.error);
+        alert(flowId ? 'Failed to update cursor flow' : 'Failed to create cursor flow');
         return;
       }
 
-      // If there was a partial error (flow created but steps had issues)
+      // If there was a partial error (flow created/updated but steps had issues)
       if (result.error) {
         console.warn('Partial success:', result.error);
-        alert('Flow created, but some steps may not have been processed correctly.');
+        alert('Flow ' + (flowId ? 'updated' : 'created') + ', but some steps may not have been processed correctly.');
       } else {
-        alert('Flow and steps created successfully!');
+        alert('Flow ' + (flowId ? 'updated' : 'created') + ' successfully!');
       }
 
       // Refresh the cursor flows list
@@ -126,10 +144,11 @@ function CursorFlows() {
       setIsUploadDialogOpen(false);
       setSelectedFile(null);
       setFlowName("");
+      setFlowId("");
       
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload and process JSON');
+      alert('Failed to ' + (flowId ? 'update' : 'upload') + ' and process JSON');
     } finally {
       setIsUploading(false);
     }
@@ -164,6 +183,40 @@ function CursorFlows() {
     }
   };
 
+  // Function to handle the flow request submission
+  const handleFlowRequestSubmit = async () => {
+    if (!requestFlowName.trim()) {
+      return;
+    }
+    
+    try {
+      const userId = 'a0d6ba16-6093-4086-ad69-72df4c720010';
+      
+      const { success, error } = await createCursorFlowRequest(
+        requestFlowName,
+        requestFlowContext || null,
+        organizationId,
+        userId
+      );
+      
+      if (success) {
+        alert('Flow request submitted successfully!');
+        setRequestFlowName("");
+        setRequestFlowContext("");
+        setIsRequestFlowDialogOpen(false);
+        
+        // Reload the cursor flows to show the new requested flow
+        await loadCursorFlows();
+      } else {
+        console.error('Error submitting flow request:', error);
+        alert('Failed to submit flow request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred while submitting your request.');
+    }
+  };
+
   return (
     <InviteTeamMembers>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
@@ -176,12 +229,22 @@ function CursorFlows() {
           <span className="grow shrink-0 basis-0 text-heading-3 font-heading-3 text-default-font">
             Cursor Flows
           </span>
-          <Button
-            icon="FeatherPlus"
-            onClick={() => setIsUploadDialogOpen(true)}
-          >
-            Create Flow
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              className="h-8 grow shrink-0 basis-0"
+              variant="neutral-primary"
+              icon="FeatherPlus"
+              onClick={() => setIsUploadDialogOpen(true)}
+            >
+              Create
+            </Button>
+            <Button
+              icon="FeatherWorkflow"
+              onClick={() => setIsRequestFlowDialogOpen(true)}
+            >
+              Request a flow
+            </Button>
+          </div>
         </div>
         <div className="flex w-full flex-col items-start gap-4">
           <div className="flex w-full items-center gap-2 border-b border-solid border-neutral-border py-2">
@@ -210,16 +273,18 @@ function CursorFlows() {
               cursorFlows.map((flow) => (
                 <HomeListItem
                   key={flow.id}
-                  icon="FeatherMousePointer"
+                  icon={flow.status === 'requested' ? "FeatherClock" : "FeatherMousePointer"}
                   title={flow.name}
                   subtitle={flow.audienceName || "No audience"}
                   metadata=""
-                  onClick={() => navigateToPreview(flow.id, flow.name)}
-                  className="cursor-pointer"
+                  onClick={() => navigateToPreview(flow.id, flow.name, flow.status)}
+                  className={`cursor-pointer ${flow.status === 'requested' ? 'opacity-70' : ''}`}
                 >
                   <div className="flex items-center justify-end gap-4 w-48">
                     <Badge variant={getBadgeVariantForStatus(flow.status)}>
-                      {flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
+                      {flow.status.toLowerCase() === 'published' 
+                        ? 'Live' 
+                        : flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
                     </Badge>
                     <SubframeCore.DropdownMenu.Root>
                       <SubframeCore.DropdownMenu.Trigger asChild={true}>
@@ -236,15 +301,17 @@ function CursorFlows() {
                           asChild={true}
                         >
                           <DropdownMenu>
-                            <DropdownMenu.DropdownItem 
-                              icon="FeatherPlay"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigateToPreview(flow.id, flow.name);
-                              }}
-                            >
-                              Preview
-                            </DropdownMenu.DropdownItem>
+                            {flow.status !== 'requested' && (
+                              <DropdownMenu.DropdownItem 
+                                icon="FeatherPlay"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateToPreview(flow.id, flow.name, flow.status);
+                                }}
+                              >
+                                Preview
+                              </DropdownMenu.DropdownItem>
+                            )}
                             <DropdownMenu.DropdownItem icon="FeatherEdit2">
                               Edit
                             </DropdownMenu.DropdownItem>
@@ -299,6 +366,23 @@ function CursorFlows() {
             />
           </div>
           
+          {/* Optional Flow ID input */}
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Flow ID (Optional)
+            </label>
+            <input
+              type="text"
+              value={flowId}
+              onChange={(e) => setFlowId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-500 focus:border-brand-500"
+              placeholder="Provide existing Flow ID to update"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              If provided, this will update an existing flow instead of creating a new one
+            </p>
+          </div>
+          
           <div className="flex w-full flex-col items-center justify-center gap-4 rounded-md bg-neutral-50 px-12 py-12">
             <input
               type="file"
@@ -327,6 +411,7 @@ function CursorFlows() {
                 setIsUploadDialogOpen(false);
                 setSelectedFile(null);
                 setFlowName("");
+                setFlowId("");
               }}
             >
               Cancel
@@ -335,7 +420,7 @@ function CursorFlows() {
               onClick={handleUploadJson} 
               disabled={isUploading || !selectedFile || !flowName.trim()}
             >
-              {isUploading ? "Uploading..." : "Upload File"}
+              {isUploading ? "Uploading..." : flowId ? "Update Flow" : "Create Flow"}
             </Button>
           </div>
         </div>
@@ -372,6 +457,69 @@ function CursorFlows() {
               onClick={confirmDelete}
             >
               Delete
+            </Button>
+          </div>
+        </div>
+      </DialogLayout>
+
+      {/* Request Flow Dialog */}
+      <DialogLayout open={isRequestFlowDialogOpen} onOpenChange={setIsRequestFlowDialogOpen}>
+        <div className="flex h-full w-full flex-col items-start gap-6 px-6 py-6">
+          <div className="flex w-full items-start justify-between">
+            <div className="flex grow shrink-0 basis-0 flex-col items-start gap-1">
+              <span className="text-heading-3 font-heading-3 text-default-font">
+                Request a flow
+              </span>
+              <span className="text-body font-body text-subtext-color">
+                Tell us what flow you need and our browser agent creates it
+              </span>
+            </div>
+            <SubframeCore.Icon
+              className="text-body font-body text-neutral-500 cursor-pointer"
+              name="FeatherX"
+              onClick={() => setIsRequestFlowDialogOpen(false)}
+            />
+          </div>
+          <div className="flex w-full flex-col items-start gap-6">
+            <TextField
+              className="h-auto w-full flex-none"
+              label="Flow name"
+              helpText="What do you want this walkthrough to do?"
+            >
+              <TextField.Input
+                placeholder="e.g. Product Tour Flow"
+                value={requestFlowName}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                  setRequestFlowName(event.target.value)
+                }
+              />
+            </TextField>
+            <TextArea
+              className="h-auto w-full flex-none"
+              label="Additional context (optional)"
+              helpText=""
+            >
+              <TextArea.Input
+                placeholder="Provide optional product related context to help the agent create this flow"
+                value={requestFlowContext}
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => 
+                  setRequestFlowContext(event.target.value)
+                }
+              />
+            </TextArea>
+          </div>
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button
+              variant="neutral-tertiary"
+              onClick={() => setIsRequestFlowDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleFlowRequestSubmit}
+              disabled={!requestFlowName.trim()}
+            >
+              Submit request
             </Button>
           </div>
         </div>

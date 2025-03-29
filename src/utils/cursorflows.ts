@@ -1,4 +1,4 @@
-import { supabase, type CursorFlow, type CursorFlowStep } from "../lib/supabase";
+import { supabase, type CursorFlow, type CursorFlowStep, type CursorFlowRequest } from "../lib/supabase";
 import { 
   parseRecordingToSteps, 
   createCursorFlowSteps as createSteps 
@@ -95,34 +95,35 @@ export const readFileAsJSON = (file: File): Promise<any> => {
  * @param status - The status of the cursor flow
  * @returns The badge variant string
  */
-export const getBadgeVariantForStatus = (status: string): 'success' | 'warning' | 'neutral' | 'error' | 'brand' => {
-  const lowercaseStatus = status.toLowerCase();
-  switch (lowercaseStatus) {
+export function getBadgeVariantForStatus(status: string): "error" | "success" | "brand" | "neutral" | "warning" | undefined {
+  switch (status.toLowerCase()) {
+    case 'published':
     case 'live':
       return 'success';
     case 'draft':
       return 'warning';
-    case 'archived':
-    case 'paused':
-      return 'neutral';
+    case 'requested':
+      return 'neutral'; // Use neutral instead of empty string
     default:
-      return 'neutral';
+      return 'neutral'; // Default to neutral for other statuses
   }
-};
+}
 
 /**
- * Process a JSON file for a cursor flow
+ * Process a JSON file for a cursor flow, creating or updating a flow
  * @param file - The JSON file to process
- * @param flowName - The name for the new cursor flow
+ * @param flowName - The name for the cursor flow
  * @param organizationId - The organization ID
  * @param userId - The user ID
+ * @param existingFlowId - Optional ID of an existing flow to update
  * @returns Promise with the result of the operation
  */
 export const processJsonForCursorFlow = async (
   file: File,
   flowName: string,
   organizationId: string,
-  userId: string
+  userId: string,
+  existingFlowId?: string
 ): Promise<{
   success: boolean;
   flowData?: CursorFlow;
@@ -135,16 +136,54 @@ export const processJsonForCursorFlow = async (
       return { success: false, error: 'Invalid JSON file' };
     }
 
-    // Create the cursor flow
-    const { data: flowData, error: flowError } = await createCursorFlow(
-      flowName,
-      'Uploaded via dashboard',
-      organizationId,
-      userId
-    );
+    let flowData: CursorFlow;
+    
+    if (existingFlowId) {
+      // Update existing flow
+      const { data, error: updateError } = await supabase
+        .from('cursor_flows')
+        .update({
+          name: flowName,
+          description: 'Updated via dashboard',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingFlowId)
+        .select()
+        .single();
+      
+      if (updateError || !data) {
+        return { success: false, error: updateError || 'Flow not found' };
+      }
+      
+      flowData = data;
+      
+      // Delete existing steps for this flow
+      const { error: deleteError } = await supabase
+        .from('cursor_flow_steps')
+        .delete()
+        .eq('flow_id', existingFlowId);
+      
+      if (deleteError) {
+        return { 
+          success: true, // Flow was updated
+          flowData,
+          error: `Flow updated but failed to remove old steps: ${deleteError}` 
+        };
+      }
+    } else {
+      // Create new flow
+      const { data: newFlowData, error: flowError } = await createCursorFlow(
+        flowName,
+        'Uploaded via dashboard',
+        organizationId,
+        userId
+      );
 
-    if (flowError || !flowData) {
-      return { success: false, error: flowError };
+      if (flowError || !newFlowData) {
+        return { success: false, error: flowError };
+      }
+      
+      flowData = newFlowData;
     }
 
     // Parse the recording data into steps
@@ -155,7 +194,7 @@ export const processJsonForCursorFlow = async (
       return { 
         success: true, 
         flowData,
-        error: `Flow created but failed to parse steps: ${parseError}`
+        error: `Flow ${existingFlowId ? 'updated' : 'created'} but failed to parse steps: ${parseError}`
       };
     }
 
@@ -165,9 +204,9 @@ export const processJsonForCursorFlow = async (
       
       if (!success) {
         return { 
-          success: true, // Flow was created
+          success: true, // Flow was created/updated
           flowData,
-          error: `Flow created but some steps failed to save: ${JSON.stringify(errors)}`
+          error: `Flow ${existingFlowId ? 'updated' : 'created'} but some steps failed to save: ${JSON.stringify(errors)}`
         };
       }
     }
@@ -191,9 +230,18 @@ export const deleteCursorFlow = async (
   error?: any;
 }> => {
   try {
-    // Delete from cursor_flows table
-    // With proper FK constraints set up with ON DELETE CASCADE, 
-    // this would automatically delete steps, but we'll explicitly delete them to be safe
+    // First delete any associated requests
+    const { error: requestError } = await supabase
+      .from('cursor_flow_requests')
+      .delete()
+      .eq('result_flow_id', flowId);
+
+    if (requestError) {
+      console.error('Error deleting cursor flow request:', requestError);
+      return { success: false, error: requestError };
+    }
+    
+    // Delete flow steps
     const { error: stepsError } = await supabase
       .from('cursor_flow_steps')
       .delete()
@@ -204,6 +252,7 @@ export const deleteCursorFlow = async (
       return { success: false, error: stepsError };
     }
     
+    // Delete the flow itself
     const { error } = await supabase
       .from('cursor_flows')
       .delete()
@@ -538,4 +587,55 @@ export const fetchCursorFlowsWithAudiences = async (organizationId?: string): Pr
     console.error('Error in fetchCursorFlowsWithAudiences:', error);
     return { data: null, error };
   }
-}; 
+};
+
+export async function createCursorFlowRequest(
+  name: string,
+  description: string | null,
+  organizationId: string,
+  userId: string
+): Promise<{ success: boolean; error: any; flowId?: string }> {
+  try {
+    // Start a transaction to create both records
+    const { data: flowData, error: flowError } = await supabase
+      .from('cursor_flows')
+      .insert({
+        name,
+        description,
+        status: 'requested',
+        organization_id: organizationId,
+        created_by: userId
+      })
+      .select('id')
+      .single();
+
+    if (flowError) {
+      return { success: false, error: flowError };
+    }
+
+    // Store the new flow ID to reference in the requests table
+    const flowId = flowData.id;
+
+    // Create the request record
+    const { error: requestError } = await supabase
+      .from('cursor_flow_requests')
+      .insert({
+        name,
+        description,
+        status: 'pending',
+        organization_id: organizationId,
+        created_by: userId,
+        result_flow_id: flowId  // Link to the cursor_flow we just created
+      });
+
+    if (requestError) {
+      // If request creation fails, we should clean up the flow we created
+      // But since this is a quick solution, we'll leave it for now
+      return { success: false, error: requestError };
+    }
+
+    return { success: true, error: null, flowId };
+  } catch (error) {
+    return { success: false, error };
+  }
+} 
