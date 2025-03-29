@@ -129,13 +129,19 @@ function CursorFlows() {
         return;
       }
 
-      // If there was a partial error (flow created/updated but steps had issues)
-      if (result.error) {
+      // Check text generation status
+      let message = flowId ? 'Flow updated' : 'Flow created';
+      
+      if (result.textGenerated) {
+        message += ` successfully with ${result.textProcessedCount} steps automatically annotated!`;
+      } else if (result.error) {
         console.warn('Partial success:', result.error);
-        alert('Flow ' + (flowId ? 'updated' : 'created') + ', but some steps may not have been processed correctly.');
+        message += ', but some steps may not have been processed correctly.';
       } else {
-        alert('Flow ' + (flowId ? 'updated' : 'created') + ' successfully!');
+        message += ' successfully!';
       }
+      
+      alert(message);
 
       // Refresh the cursor flows list
       await loadCursorFlows();

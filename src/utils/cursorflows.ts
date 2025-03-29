@@ -128,6 +128,8 @@ export const processJsonForCursorFlow = async (
   success: boolean;
   flowData?: CursorFlow;
   error?: any;
+  textGenerated?: boolean;
+  textProcessedCount?: number;
 }> => {
   try {
     // Read and parse the JSON file
@@ -212,7 +214,27 @@ export const processJsonForCursorFlow = async (
       }
     }
 
-    return { success: true, flowData };
+    // After successful step creation, trigger text generation
+    console.log('Triggering text generation for flow:', flowData.id);
+    const { success: textSuccess, processedCount, error: textError } = await generateCursorFlowText(flowData.id);
+    
+    if (!textSuccess) {
+      console.warn('Failed to generate text for cursor flow steps:', textError);
+      // Return success for the overall flow creation, but indicate text generation failed
+      return { 
+        success: true, 
+        flowData, 
+        textGenerated: false,
+        error: `Flow created successfully, but automatic text generation failed: ${textError}`
+      };
+    }
+
+    return { 
+      success: true, 
+      flowData,
+      textGenerated: true,
+      textProcessedCount: processedCount
+    };
   } catch (error) {
     console.error('Error in processJsonForCursorFlow:', error);
     return { success: false, error };
@@ -639,4 +661,46 @@ export async function createCursorFlowRequest(
   } catch (error) {
     return { success: false, error };
   }
-} 
+}
+
+/**
+ * Generate text for cursor flow steps using Gemini
+ * @param flowId - The ID of the cursor flow to process
+ * @returns Promise with the result of the operation
+ */
+export const generateCursorFlowText = async (
+  flowId: string
+): Promise<{
+  success: boolean;
+  message?: string;
+  processedCount?: number;
+  error?: any;
+}> => {
+  try {
+    // Fix the URL construction here
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hyphenbox-backend.onrender.com';
+    
+    const response = await fetch(`${apiUrl}/api/cursor-flows/generate-text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ flowId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    return { 
+      success: true,
+      message: result.message,
+      processedCount: result.processedCount || 0
+    };
+  } catch (error) {
+    console.error('Error triggering text generation:', error);
+    return { success: false, error };
+  }
+}; 
