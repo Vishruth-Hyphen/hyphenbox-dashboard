@@ -145,6 +145,7 @@ export const processJsonForCursorFlow = async (
         .update({
           name: flowName,
           description: 'Updated via dashboard',
+          status: 'draft',
           updated_at: new Date().toISOString()
         })
         .eq('id', existingFlowId)
