@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
@@ -25,54 +25,11 @@ import {
 import { TextField } from "@/ui/components/TextField";
 import { TextArea } from "@/ui/components/TextArea";
 
-function CursorFlows() {
+// Component that uses searchParams
+function CursorFlowsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { session } = useAuth();
-  
-  // Get organization ID from either:
-  // 1. URL query param (for super admin)
-  // 2. User's session (for regular users)
-  // 3. LocalStorage (fallback for super admin)
-  const getOrganizationId = () => {
-    // Check URL params first (used when super admin selects an org)
-    const orgFromUrl = searchParams.get('org');
-    if (orgFromUrl) return orgFromUrl;
-    
-    // For regular users, use their selected organization from session
-    if (session?.selectedOrganizationId) return session.selectedOrganizationId;
-    
-    // Check localStorage for selectedOrganizationId
-    try {
-      const savedOrgId = localStorage.getItem('selectedOrganizationId');
-      if (savedOrgId) return savedOrgId;
-    } catch (e) {
-      console.error('Error reading selectedOrganizationId from localStorage:', e);
-    }
-    
-    // For super admin, check localStorage for previously selected org
-    if (session?.user?.is_super_admin) {
-      try {
-        const savedOrg = localStorage.getItem('selectedOrganization');
-        if (savedOrg) {
-          const parsedOrg = JSON.parse(savedOrg);
-          return parsedOrg.id;
-        }
-      } catch (e) {
-        console.error('Error reading selected organization from localStorage:', e);
-      }
-    }
-    
-    // If all else fails, redirect to org selection for super admin
-    // or show an error for regular users
-    if (session?.user?.is_super_admin) {
-      router.push('/dashboard/organizations');
-      return null;
-    }
-    
-    console.error('No organization ID available');
-    return null;
-  };
   
   // State to control the open/closed state of the upload dialog
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -106,13 +63,52 @@ function CursorFlows() {
   // Organization name for display
   const [organizationName, setOrganizationName] = useState<string | null>(null);
 
+  // Function to get the organization ID from URL params or session
+  const getOrganizationId = useCallback(() => {
+    // Check URL params first (used when super admin selects an org)
+    const orgFromUrl = searchParams.get('org');
+    if (orgFromUrl) return orgFromUrl;
+    
+    // For regular users, use their selected organization from session
+    if (session?.selectedOrganizationId) return session.selectedOrganizationId;
+    
+    // Check localStorage for selectedOrganizationId
+    try {
+      const savedOrgId = localStorage.getItem('selectedOrganizationId');
+      if (savedOrgId) return savedOrgId;
+    } catch (e) {
+      console.error('Error reading selectedOrganizationId from localStorage:', e);
+    }
+    
+    // For super admin, check localStorage for previously selected org
+    if (session?.user?.is_super_admin) {
+      try {
+        const savedOrg = localStorage.getItem('selectedOrganization');
+        if (savedOrg) {
+          const parsedOrg = JSON.parse(savedOrg);
+          return parsedOrg.id;
+        }
+      } catch (e) {
+        console.error('Error reading selected organization from localStorage:', e);
+      }
+    }
+    
+    // If all else fails, redirect to org selection for super admin
+    if (session?.user?.is_super_admin) {
+      router.push('/dashboard/organizations');
+      return null;
+    }
+    
+    return null;
+  }, [searchParams, session, router]);
+
   // Set up organization ID on component mount and when session changes
   useEffect(() => {
-    const orgId = getOrganizationId();
-    setOrganizationId(orgId);
-    
-    // Try to get org name for super admin
-    if (session?.user?.is_super_admin) {
+    if (session?.user) {
+      const orgId = getOrganizationId();
+      setOrganizationId(orgId);
+      
+      // Try to get org name for super admin
       try {
         const savedOrg = localStorage.getItem('selectedOrganization');
         if (savedOrg) {
@@ -123,17 +119,10 @@ function CursorFlows() {
         console.error('Error reading organization name:', e);
       }
     }
-  }, [session, searchParams]);
-
-  // Fetch cursor flows when organizationId is available
-  useEffect(() => {
-    if (organizationId) {
-      loadCursorFlows();
-    }
-  }, [organizationId]);
+  }, [session, getOrganizationId]);
 
   // Function to load cursor flows data
-  const loadCursorFlows = async () => {
+  const loadCursorFlows = useCallback(async () => {
     if (!organizationId) return;
     
     setIsLoading(true);
@@ -151,7 +140,14 @@ function CursorFlows() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  // Fetch cursor flows when organizationId is available
+  useEffect(() => {
+    if (organizationId) {
+      loadCursorFlows();
+    }
+  }, [organizationId, loadCursorFlows]);
 
   // Function to handle file selection
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -541,7 +537,7 @@ function CursorFlows() {
                 Confirm Deletion
               </span>
               <span className="text-body font-body text-subtext-color">
-                Are you sure you want to delete "{flowToDelete?.name}"? This action cannot be undone.
+                Are you sure you want to delete &quot;{flowToDelete?.name}&quot;? This action cannot be undone.
               </span>
             </div>
             <SubframeCore.Icon
@@ -634,4 +630,11 @@ function CursorFlows() {
   );
 }
 
-export default CursorFlows;
+// Main component with Suspense boundary
+export default function CursorFlows() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center">Loading cursor flows...</div>}>
+      <CursorFlowsContent />
+    </Suspense>
+  );
+}

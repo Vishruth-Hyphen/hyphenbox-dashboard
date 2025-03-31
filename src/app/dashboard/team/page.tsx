@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import * as SubframeCore from "@subframe/core";
@@ -25,7 +25,8 @@ type Invitation = {
   } | null;
 };
 
-function Team() {
+// Component that uses searchParams 
+function TeamContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { session } = useAuth();
@@ -37,7 +38,7 @@ function Team() {
   const [error, setError] = useState<string | null>(null);
   
   // Get organization ID using the same approach as in cursorflows page
-  const getOrganizationId = () => {
+  const getOrganizationId = useCallback(() => {
     // Check URL params first (used when super admin selects an org)
     const orgFromUrl = searchParams.get('org');
     if (orgFromUrl) return orgFromUrl;
@@ -73,39 +74,34 @@ function Team() {
     }
     
     return null;
-  };
+  }, [searchParams, session, router]);
   
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
 
   // Set up organization ID on component mount and when session changes
   useEffect(() => {
-    const orgId = getOrganizationId();
-    setOrganizationId(orgId);
-    
-    // Try to get org name for super admin
-    if (session?.user?.is_super_admin) {
-      try {
-        const savedOrg = localStorage.getItem('selectedOrganization');
-        if (savedOrg) {
-          const parsedOrg = JSON.parse(savedOrg);
-          setOrganizationName(parsedOrg.name);
+    if (session?.user) {
+      const orgId = getOrganizationId();
+      setOrganizationId(orgId);
+      
+      // Try to get org name for super admin
+      if (session?.user?.is_super_admin) {
+        try {
+          const savedOrg = localStorage.getItem('selectedOrganization');
+          if (savedOrg) {
+            const parsedOrg = JSON.parse(savedOrg);
+            setOrganizationName(parsedOrg.name);
+          }
+        } catch (e) {
+          console.error('Error reading organization name:', e);
         }
-      } catch (e) {
-        console.error('Error reading organization name:', e);
       }
     }
-  }, [session, searchParams]);
-
-  // Load invitations when organizationId is available
-  useEffect(() => {
-    if (organizationId) {
-      loadInvitations();
-    }
-  }, [organizationId]);
+  }, [session, getOrganizationId]);
 
   // Function to load team invitations
-  const loadInvitations = async () => {
+  const loadInvitations = useCallback(async () => {
     if (!organizationId) return;
     
     setLoading(true);
@@ -156,7 +152,14 @@ function Team() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  // Load invitations when organizationId is available
+  useEffect(() => {
+    if (organizationId) {
+      loadInvitations();
+    }
+  }, [organizationId, loadInvitations]);
 
   // Function to send invitation
   const sendInvite = async () => {
@@ -365,4 +368,11 @@ function Team() {
   );
 }
 
-export default Team;
+// Main component with Suspense boundary
+export default function Team() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center">Loading team page...</div>}>
+      <TeamContent />
+    </Suspense>
+  );
+}

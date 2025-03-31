@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
@@ -38,9 +38,8 @@ import {
 // Placeholder image when no screenshot is available
 const PLACEHOLDER_IMAGE = "https://gazvscvowgdojkbkxnmk.supabase.co/storage/v1/object/public/screenshots//Screenshot%202025-03-19%20at%209.47.29%20PM.png";
 
-
-
-function CursorFlowPreview() {
+// Create a wrapper component that uses searchParams
+function CursorFlowPreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const flowId = searchParams.get('flowId');
@@ -742,4 +741,11 @@ function CursorFlowPreview() {
   );
 }
 
-export default CursorFlowPreview; 
+// Main component with Suspense boundary
+export default function CursorFlowPreview() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center">Loading flow preview...</div>}>
+      <CursorFlowPreviewContent />
+    </Suspense>
+  );
+} 

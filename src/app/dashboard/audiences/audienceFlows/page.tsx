@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
@@ -28,7 +28,7 @@ import { DialogLayout } from "@/ui/layouts/DialogLayout";
 import { TextField } from "@/ui/components/TextField";
 import { Select } from "@/ui/components/Select";
 
-function AudienceFlows() {
+function AudienceFlowsContent() {
   const searchParams = useSearchParams();
   const audienceId = searchParams.get("id");
   
@@ -446,4 +446,10 @@ function AudienceFlows() {
   );
 }
 
-export default AudienceFlows;
+export default function AudienceFlows() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center">Loading audience flows...</div>}>
+      <AudienceFlowsContent />
+    </Suspense>
+  );
+}

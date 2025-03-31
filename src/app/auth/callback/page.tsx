@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 // Same list as in AuthContext - keep these in sync
 const SUPER_ADMIN_EMAILS = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com']; // Add your cofounder's email if needed
 
-export default function AuthCallback() {
+// Component that uses searchParams
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -153,4 +155,13 @@ export default function AuthCallback() {
       <p className="text-gray-500">Please wait while we set up your workspace.</p>
     </div>
   </div>;
+}
+
+// Main component with Suspense boundary
+export default function Callback() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center">Processing authentication...</div>}>
+      <CallbackContent />
+    </Suspense>
+  );
 }
