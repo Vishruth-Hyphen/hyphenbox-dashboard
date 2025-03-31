@@ -258,6 +258,33 @@ function CursorFlows() {
     }
   };
 
+  // Function to handle flow request submission
+  const handleFlowRequestSubmit = async () => {
+    if (!organizationId || !session?.user?.id) return;
+    
+    try {
+      const { success, error, flowId } = await createCursorFlowRequest(
+        requestFlowName,
+        requestFlowContext,
+        organizationId,
+        session.user.id
+      );
+
+      if (success && flowId) {
+        await loadCursorFlows();
+        setIsRequestFlowDialogOpen(false);
+        setRequestFlowName("");
+        setRequestFlowContext("");
+      } else {
+        console.error('Failed to create flow request:', error);
+        alert('Failed to create flow request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error creating flow request:', error);
+      alert('An error occurred while creating the flow request.');
+    }
+  };
+
   // If no organization ID is available, show loading or error state
   if (!organizationId) {
     return (
