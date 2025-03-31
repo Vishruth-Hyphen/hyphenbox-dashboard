@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { UserSession } from '../lib/auth';
 
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Function to get organization memberships for a user
-  const getOrganizationMemberships = async (userId: string): Promise<OrganizationMembership[]> => {
+  const getOrganizationMemberships = useCallback(async (userId: string): Promise<OrganizationMembership[]> => {
     console.log('[AUTH_DEBUG] Entering getOrganizationMemberships for userId:', userId);
     
     // NOTE: Complex retry logic has been simplified since we now force users through 
@@ -68,10 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       console.log('[AUTH_DEBUG] Exiting getOrganizationMemberships');
     }
-  };
+  }, []);
 
   // Function to build session object with memberships
-  const buildSessionWithMemberships = async (supabaseSession: any) => {
+  const buildSessionWithMemberships = useCallback(async (supabaseSession: any) => {
     const userEmail = supabaseSession.user.email || '';
     const userId = supabaseSession.user.id;
     
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       memberships: [],
       selectedOrganizationId: null
     };
-  };
+  }, [getOrganizationMemberships]);
 
   useEffect(() => {
     const initSession = async () => {
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [buildSessionWithMemberships]);
 
   return (
     <AuthContext.Provider value={{ session, isLoading }}>
