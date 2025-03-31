@@ -57,6 +57,11 @@ export type CursorFlow = {
   name: string;
   description: string;
   status: string;
+  audience_id?: string | null;
+  organization_id: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CursorFlowStep = {

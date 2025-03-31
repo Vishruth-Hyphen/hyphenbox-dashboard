@@ -31,14 +31,8 @@ export default function LoginPage() {
         .eq('status', 'pending')
         .maybeSingle();
       
-      // For development purposes, allow your specific email
-      // You can uncomment this to bypass the checks during development
-      const isDevMode = process.env.NODE_ENV === 'development';
-      const isYourEmail = email === 'kushalsokke@gmail.com';
-      const bypassChecks = isDevMode && isYourEmail;
-        
-      if (existingUser || pendingInvite || bypassChecks) {
-        // Valid user or has invitation or bypassing checks, send magic link
+      if (existingUser || pendingInvite) {
+        // Valid user or has invitation, send magic link
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: {
