@@ -55,8 +55,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export type CursorFlow = {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   status: string;
+  organization_id: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  audience_id: string | null;
+  published_at: string | null;
+  published_by: string | null;
 };
 
 export type CursorFlowStep = {
