@@ -621,7 +621,7 @@ function Knowledge() {
                 Confirm Deletion
               </span>
               <span className="text-body font-body text-subtext-color">
-                Are you sure you want to delete "{resourceToDelete?.name}"? This action cannot be undone.
+                Are you sure you want to delete &quot;{resourceToDelete?.name}&quot;? This action cannot be undone.
               </span>
             </div>
             <SubframeCore.Icon
