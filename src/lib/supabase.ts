@@ -33,24 +33,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Pre-warm the connection with a simple lightweight query
-// This helps establish the connection before it's needed by auth
-(async () => {
-  try {
-    console.log('[SUPABASE] Pre-warming connection...');
-    // Simple health check query to ensure connection is established
-    const { error } = await supabase.from('_pre_warm_connection_').select('count').limit(1).maybeSingle();
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 is "relation does not exist" which is expected for a fake table
-      console.warn('[SUPABASE] Pre-warm query failed:', error);
-    } else {
-      console.log('[SUPABASE] Pre-warm successful');
-    }
-  } catch (err) {
-    console.warn('[SUPABASE] Pre-warm attempt failed:', err);
-  }
-})();
-
 // Export other types that use Supabase
 export type CursorFlow = {
   id: string;
