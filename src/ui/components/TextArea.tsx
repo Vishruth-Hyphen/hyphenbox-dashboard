@@ -18,7 +18,8 @@ interface InputProps
   className?: string;
 }
 
-const Input = React.forwardRef<HTMLElement, InputProps>(function Input(
+// Export Input component separately to avoid bundling issues
+export const TextAreaInput = React.forwardRef<HTMLElement, InputProps>(function Input(
   { placeholder, className, ...otherProps }: InputProps,
   ref
 ) {
@@ -101,6 +102,7 @@ const TextAreaRoot = React.forwardRef<HTMLElement, TextAreaRootProps>(
   }
 );
 
+// Explicitly export the compound component  
 export const TextArea = Object.assign(TextAreaRoot, {
-  Input,
+  Input: TextAreaInput,
 });
