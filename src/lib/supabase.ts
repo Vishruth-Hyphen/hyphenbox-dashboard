@@ -69,3 +69,17 @@ export type CursorFlowStep = {
   created_at: string;
   updated_at: string;
 };
+
+export type CursorFlowRequest = {
+  id: string;
+  name: string;
+  description: string | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'rejected';
+  organization_id: string;
+  created_by: string | null;
+  assigned_to: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  result_flow_id: string | null;
+};

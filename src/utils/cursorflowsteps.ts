@@ -332,3 +332,56 @@ export const deleteCursorFlowSteps = async (flowId: string): Promise<{
     return { success: false, error };
   }
 };
+
+/**
+ * Update cursor position for a specific step
+ * @param stepId - The ID of the step to update
+ * @param position - The new cursor position {x, y}
+ * @returns Promise with success status
+ */
+export const updateStepCursorPosition = async (
+  stepId: string,
+  position: {x: number, y: number}
+): Promise<{
+  success: boolean;
+  error?: any;
+}> => {
+  try {
+    // First get the current step data
+    const { data, error: fetchError } = await supabase
+      .from('cursor_flow_steps')
+      .select('step_data')
+      .eq('id', stepId)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching step data:', fetchError);
+      return { success: false, error: fetchError };
+    }
+    
+    // Update the position in step_data
+    const updatedStepData = {
+      ...data.step_data,
+      position: position
+    };
+    
+    // Save the updated step_data back to the database
+    const { error: updateError } = await supabase
+      .from('cursor_flow_steps')
+      .update({ 
+        step_data: updatedStepData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', stepId);
+
+    if (updateError) {
+      console.error('Error updating cursor position:', updateError);
+      return { success: false, error: updateError };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateStepCursorPosition:', error);
+    return { success: false, error };
+  }
+};

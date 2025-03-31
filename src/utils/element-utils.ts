@@ -100,22 +100,37 @@ export const getElementTagName = (step: any): string | null => {
 /**
  * Calculates the cursor position as percentage values relative to the image size
  * This is necessary to position the cursor overlay correctly regardless of image size
- * @param position The cursor position in pixels
- * @param elementRect The bounding rectangle of the clicked element
+ * @param step The cursor flow step
  * @returns Position as percentage values of the container
  */
-export const getCursorPositionPercentage = (
-  step: any
-): { xPercent: number, yPercent: number } | null => {
-  const position = getCursorPosition(step);
-  const rect = step?.step_data?.elementRect;
+export const getCursorPositionPercentage = (step: any) => {
+  if (!step || !step.step_data || !step.step_data.position) return null;
   
-  if (!position || !rect) return null;
+  // Get cursor position from step data
+  const cursorPosition = {
+    x: step.step_data.position.x,
+    y: step.step_data.position.y
+  };
   
-  // Get the position relative to the screenshot
-  // We need to calculate what percentage of the screenshot the cursor position represents
+  // Get viewport data from step data
+  const viewport = step.step_data.element?.viewport || {
+    width: 1920, // fallback values if viewport data isn't available
+    height: 1080,
+    scrollX: 0,
+    scrollY: 0,
+    devicePixelRatio: 1
+  };
+  
+  // Calculate absolute position (accounting for scroll)
+  const absoluteX = cursorPosition.x + (viewport.scrollX || 0);
+  const absoluteY = cursorPosition.y + (viewport.scrollY || 0);
+  
+  // Calculate percentages based on viewport dimensions
+  const xPercent = (absoluteX / viewport.width) * 100;
+  const yPercent = (absoluteY / viewport.height) * 100;
+  
   return {
-    xPercent: (position.x / window.innerWidth) * 100,
-    yPercent: (position.y / window.innerHeight) * 100
+    xPercent,
+    yPercent
   };
 }; 
