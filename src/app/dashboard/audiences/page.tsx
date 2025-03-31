@@ -12,6 +12,7 @@ import { DialogLayout } from "@/ui/layouts/DialogLayout";
 import { TextField } from "@/ui/components/TextField";
 import { Select } from "@/ui/components/Select";
 import { Alert } from "@/ui/components/Alert";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   fetchAudiences,
   fetchAudienceFlowCounts,
@@ -26,6 +27,8 @@ import { type CursorFlow } from "@/lib/supabase";
 import { formatRelativeTime } from "@/utils/dateUtils";
 
 function Audiences() {
+  const { session } = useAuth();
+  
   // State for audiences and cursor flows
   const [audiences, setAudiences] = useState<AudienceData[]>([]);
   const [cursorFlows, setCursorFlows] = useState<CursorFlow[]>([]);
@@ -46,62 +49,71 @@ function Audiences() {
 
   // Load audiences and cursor flows on component mount
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // Load audiences
-        const { data: audiencesData, error: audiencesError } = await fetchAudiences();
-        
-        if (audiencesError) {
-          console.error('Error fetching audiences:', audiencesError);
-          setError('Failed to load audiences');
-          return;
-        }
-        
-        if (audiencesData) {
-          setAudiences(audiencesData);
-          
-          // Get flow counts for each audience
-          const audienceIds = audiencesData.map((a: AudienceData) => a.id);
-          const { data: countsData } = await fetchAudienceFlowCounts(audienceIds);
-          
-          if (countsData) {
-            setFlowCounts(countsData);
-          }
-        }
-        
-        // We continue to load all flows for the main page view
-        const { data: allFlowsData, error: allFlowsError } = await fetchCursorFlows();
-        
-        if (allFlowsError) {
-          console.error('Error fetching all cursor flows:', allFlowsError);
-          setError('Failed to load cursor flows');
-          return;
-        }
-        
-        // Load only unassigned cursor flows for the dropdown in the create audience modal
-        const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows();
-        
-        if (unassignedFlowsError) {
-          console.error('Error fetching unassigned cursor flows:', unassignedFlowsError);
-          setError('Failed to load available cursor flows');
-          return;
-        }
-        
-        // Use the unassigned flows for the selection dropdown
-        setCursorFlows(unassignedFlowsData || []);
-      } catch (err) {
-        console.error('Error loading data:', err);
-        setError('An error occurred while loading data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (session?.selectedOrganizationId) {
+      loadData();
+    }
+  }, [session]);
+
+  const loadData = async () => {
+    if (!session?.selectedOrganizationId) {
+      setError("No organization selected");
+      return;
+    }
     
-    loadData();
-  }, []);
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const organizationId = session.selectedOrganizationId;
+      
+      // Load audiences
+      const { data: audiencesData, error: audiencesError } = await fetchAudiences(organizationId);
+      
+      if (audiencesError) {
+        console.error('Error fetching audiences:', audiencesError);
+        setError('Failed to load audiences');
+        return;
+      }
+      
+      if (audiencesData) {
+        setAudiences(audiencesData);
+        
+        // Get flow counts for each audience
+        const audienceIds = audiencesData.map((a: AudienceData) => a.id);
+        const { data: countsData } = await fetchAudienceFlowCounts(audienceIds);
+        
+        if (countsData) {
+          setFlowCounts(countsData);
+        }
+      }
+      
+      // We continue to load all flows for the main page view
+      const { data: allFlowsData, error: allFlowsError } = await fetchCursorFlows(organizationId);
+      
+      if (allFlowsError) {
+        console.error('Error fetching all cursor flows:', allFlowsError);
+        setError('Failed to load cursor flows');
+        return;
+      }
+      
+      // Load only unassigned cursor flows for the dropdown in the create audience modal
+      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(organizationId);
+      
+      if (unassignedFlowsError) {
+        console.error('Error fetching unassigned cursor flows:', unassignedFlowsError);
+        setError('Failed to load available cursor flows');
+        return;
+      }
+      
+      // Use the unassigned flows for the selection dropdown
+      setCursorFlows(unassignedFlowsData || []);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('An error occurred while loading data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle selecting a cursor flow
   const handleSelectCursorFlow = (flowId: string) => {
@@ -136,28 +148,17 @@ function Audiences() {
   
   // Handle creating a new audience
   const handleCreateAudience = async () => {
-    if (!audienceName.trim()) return;
+    if (!audienceName.trim() || !session?.selectedOrganizationId || !session?.user?.id) {
+      setError('Please provide an audience name and ensure you are logged in');
+      return;
+    }
     
     setIsSubmitting(true);
     setError(null);
     
     try {
-      // Get organization_id and user_id from the first cursor flow
-      if (cursorFlows.length === 0) {
-        setError('No cursor flows found to get organization ID');
-        return;
-      }
-      
-      const sampleFlow = cursorFlows[0];
-      const organizationId = sampleFlow.organization_id;
-      const userId = sampleFlow.created_by;
-      
-      if (!organizationId || !userId) {
-        setError('Could not determine organization ID or user ID');
-        return;
-      }
-      
-      console.log('Using IDs:', { organizationId, userId });
+      const organizationId = session.selectedOrganizationId;
+      const userId = session.user.id;
       
       const { success, audienceId, error: createError } = await createAudienceWithFlows(
         {
@@ -179,7 +180,7 @@ function Audiences() {
       setSuccessMessage('Audience created successfully!');
       
       // Reload audiences to get the updated list
-      const { data: refreshedAudiences } = await fetchAudiences();
+      const { data: refreshedAudiences } = await fetchAudiences(organizationId);
       if (refreshedAudiences) {
         setAudiences(refreshedAudiences);
         
@@ -215,7 +216,13 @@ function Audiences() {
     try {
       setError(null);
       
-      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows();
+      if (!session?.selectedOrganizationId) {
+        setError("No organization selected");
+        return;
+      }
+      
+      const organizationId = session.selectedOrganizationId;
+      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(organizationId);
       
       if (unassignedFlowsError) {
         console.error('Error fetching unassigned cursor flows:', unassignedFlowsError);

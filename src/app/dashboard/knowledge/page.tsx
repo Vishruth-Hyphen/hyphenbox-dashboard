@@ -12,6 +12,7 @@ import { IconButton } from "@/ui/components/IconButton";
 import { ListRow } from "@/ui/components/ListRow";
 import { Alert } from "@/ui/components/Alert";
 import { DialogLayout } from "@/ui/layouts/DialogLayout";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   fetchResources, 
   uploadFile, 
@@ -24,6 +25,8 @@ import {
 import { formatRelativeTime } from "@/utils/dateUtils";
 
 function Knowledge() {
+  const { session } = useAuth();
+  
   // States for resources
   const [resources, setResources] = useState<KnowledgeResource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,17 +47,23 @@ function Knowledge() {
 
   // Fetch resources on component mount
   useEffect(() => {
-    loadResources();
-  }, []);
+    if (session?.selectedOrganizationId) {
+      loadResources();
+    }
+  }, [session]);
 
   // Function to load resources
   const loadResources = async () => {
+    if (!session?.selectedOrganizationId) {
+      setError("No organization selected");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      // In a production app, get organizationId from auth context
-      const organizationId = "5380e9d2-9adf-4338-b4f6-2e59b75d349d";
+      const organizationId = session.selectedOrganizationId;
       
       const { data, error: fetchError } = await fetchResources(organizationId);
       
@@ -73,15 +82,17 @@ function Knowledge() {
 
   // Handle file input change
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) return;
+    if (!event.target.files || event.target.files.length === 0 || !session?.selectedOrganizationId || !session?.user?.id) {
+      setError("Missing required information. Please try again or refresh the page.");
+      return;
+    }
     
     setIsUploading(true);
     setError(null);
     
     try {
-      // In a production app, get these values from auth context
-      const organizationId = "5380e9d2-9adf-4338-b4f6-2e59b75d349d";
-      const userId = "a0d6ba16-6093-4086-ad69-72df4c720010";
+      const organizationId = session.selectedOrganizationId;
+      const userId = session.user.id;
       
       const files = Array.from(event.target.files);
       
@@ -133,15 +144,17 @@ function Knowledge() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     
-    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0 || !session?.selectedOrganizationId || !session?.user?.id) {
+      setError("Missing required information. Please try again or refresh the page.");
+      return;
+    }
     
     setIsUploading(true);
     setError(null);
     
     try {
-      // In a production app, get these values from auth context
-      const organizationId = "5380e9d2-9adf-4338-b4f6-2e59b75d349d";
-      const userId = "ya0d6ba16-6093-4086-ad69-72df4c720010";
+      const organizationId = session.selectedOrganizationId;
+      const userId = session.user.id;
       
       const files = Array.from(e.dataTransfer.files);
       
@@ -171,15 +184,17 @@ function Knowledge() {
 
   // Handle URL submission
   const handleAddLink = async () => {
-    if (!linkUrl.trim()) return;
+    if (!linkUrl.trim() || !session?.selectedOrganizationId || !session?.user?.id) {
+      setError("Missing required information. Please provide a URL and try again.");
+      return;
+    }
     
     setIsAddingLink(true);
     setError(null);
     
     try {
-      // In a production app, get these values from auth context
-      const organizationId = "5380e9d2-9adf-4338-b4f6-2e59b75d349d";
-      const userId = "a0d6ba16-6093-4086-ad69-72df4c720010";
+      const organizationId = session.selectedOrganizationId;
+      const userId = session.user.id;
       
       // Try to extract name from URL
       let name = "";
@@ -223,11 +238,13 @@ function Knowledge() {
 
   // Handle resource deletion
   const confirmDelete = async () => {
-    if (!resourceToDelete) return;
+    if (!resourceToDelete || !session?.selectedOrganizationId) {
+      setError("Missing required information. Please try again.");
+      return;
+    }
     
     try {
-      // In a production app, get organizationId from auth context
-      const organizationId = "5380e9d2-9adf-4338-b4f6-2e59b75d349d";
+      const organizationId = session.selectedOrganizationId;
       
       const { success, error: deleteError } = await deleteResource(
         resourceToDelete.id,
@@ -259,9 +276,13 @@ function Knowledge() {
 
   // Handle resource download/open
   const handleOpenResource = async (resource: KnowledgeResource) => {
+    if (!session?.selectedOrganizationId) {
+      setError("No organization selected");
+      return;
+    }
+    
     try {
-      // In a production app, get organizationId from auth context
-      const organizationId = "5380e9d2-9adf-4338-b4f6-2e59b75d349d";
+      const organizationId = session.selectedOrganizationId;
       
       const { url, error: urlError } = await getDownloadUrl(
         resource.id,
