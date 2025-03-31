@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 // Same list as in AuthContext - keep these in sync
-const SUPER_ADMIN_EMAILS = ['kushal@hyphenbox.com']; // Add your cofounder's email if needed
+const SUPER_ADMIN_EMAILS = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com']; // Add your cofounder's email if needed
 
 export default function AuthCallback() {
   const router = useRouter();
