@@ -14,7 +14,8 @@ import { SidebarWithSections } from "../components/SidebarWithSections";
 import { Avatar } from "../components/Avatar";
 import { DropdownMenu } from "../components/DropdownMenu";
 import { IconButton } from "../components/IconButton";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { logoutUser } from '../../utils/authUtils';
 
 interface InviteTeamMembersRootProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -30,7 +31,15 @@ const InviteTeamMembersRoot = React.forwardRef<
   ref
 ) {
   const pathname = usePathname();
+  const router = useRouter();
   
+  const handleLogout = async () => {
+    const { success } = await logoutUser();
+    if (success) {
+      router.push('/auth/login');
+    }
+  };
+
   return (
     <div
       className={SubframeCore.twClassNames(
@@ -81,7 +90,10 @@ const InviteTeamMembersRoot = React.forwardRef<
                     <DropdownMenu.DropdownItem icon="FeatherSettings">
                       Settings
                     </DropdownMenu.DropdownItem>
-                    <DropdownMenu.DropdownItem icon="FeatherLogOut">
+                    <DropdownMenu.DropdownItem 
+                      icon="FeatherLogOut" 
+                      onClick={handleLogout}
+                    >
                       Log out
                     </DropdownMenu.DropdownItem>
                   </DropdownMenu>
