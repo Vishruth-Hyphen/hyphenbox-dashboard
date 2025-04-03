@@ -48,12 +48,31 @@ export const parseRecordingToSteps = (flowId: string, jsonData: any): {stepData:
         const annotationText = interaction.element?.textContent || 
                               `Step ${index + 1}: ${interaction.type} on ${interaction.pageInfo?.url || 'unknown page'}`;
         
+        // Extract cursor position data if available
+        const cursorPosition = interaction.position ? {
+          x: interaction.position.x,
+          y: interaction.position.y
+        } : null;
+        
+        // Get viewport dimensions from element data if available
+        const viewport = interaction.element?.viewport || {
+          width: 1920,
+          height: 1080
+        };
+        
+        // Add scroll position if available to get absolute position
+        const scrollX = viewport.scrollX || 0;
+        const scrollY = viewport.scrollY || 0;
+        
         return {
           flow_id: flowId,
           position: (index + 1) * 1000, // Use increments of 1000 for easier insertion/deletion
           step_data: interactionCopy, // Use the cleaned version without screenshots
           screenshot_url: null, // This will be set elsewhere if needed
           annotation_text: annotationText,
+          // Set cursor position in dedicated columns
+          cursor_position_x: cursorPosition ? cursorPosition.x : undefined,
+          cursor_position_y: cursorPosition ? cursorPosition.y : undefined,
           is_removed: false, // New field: steps start as not removed
           originalScreenshot: originalScreenshot, // Temporary property to hold screenshot data
         };
