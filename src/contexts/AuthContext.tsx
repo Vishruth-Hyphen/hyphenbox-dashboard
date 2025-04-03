@@ -87,17 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let selectedOrganizationId = null;
       if (typeof window !== 'undefined') {
         try {
-          // First check for selectedOrganizationId
+          // Only check for selectedOrganizationId now
           selectedOrganizationId = localStorage.getItem('selectedOrganizationId');
-          
-          // If not found, check for legacy format
-          if (!selectedOrganizationId) {
-            const savedOrg = localStorage.getItem('selectedOrganization');
-            if (savedOrg) {
-              const parsedOrg = JSON.parse(savedOrg);
-              selectedOrganizationId = parsedOrg.id;
-            }
-          }
         } catch (e) {
           console.error('[AUTH] Error reading from localStorage:', e);
         }
