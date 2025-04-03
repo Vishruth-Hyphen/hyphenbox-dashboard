@@ -7,6 +7,8 @@ export interface CursorFlowStepData {
   step_data: any;
   screenshot_url: string | null;
   annotation_text: string | null;
+  cursor_position_x?: number;
+  cursor_position_y?: number;
   is_removed?: boolean;
   created_at: string;
   updated_at: string;
@@ -347,29 +349,12 @@ export const updateStepCursorPosition = async (
   error?: any;
 }> => {
   try {
-    // First get the current step data
-    const { data, error: fetchError } = await supabase
-      .from('cursor_flow_steps')
-      .select('step_data')
-      .eq('id', stepId)
-      .single();
-    
-    if (fetchError) {
-      console.error('Error fetching step data:', fetchError);
-      return { success: false, error: fetchError };
-    }
-    
-    // Update the position in step_data
-    const updatedStepData = {
-      ...data.step_data,
-      position: position
-    };
-    
-    // Save the updated step_data back to the database
+    // Update both the dedicated columns and keep step_data in sync
     const { error: updateError } = await supabase
       .from('cursor_flow_steps')
       .update({ 
-        step_data: updatedStepData,
+        cursor_position_x: position.x,
+        cursor_position_y: position.y,
         updated_at: new Date().toISOString()
       })
       .eq('id', stepId);
