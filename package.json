@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@subframe/core": "^1.138.0",
+    "@subframe/core": "^1.141.0",
     "@supabase/supabase-js": "^2.49.1",
     "classnames": "^2.3.2",
     "next": "^14.2.3",

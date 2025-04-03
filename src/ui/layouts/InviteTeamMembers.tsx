@@ -16,6 +16,7 @@ import { DropdownMenu } from "../components/DropdownMenu";
 import { IconButton } from "../components/IconButton";
 import { usePathname, useRouter } from "next/navigation";
 import { logoutUser } from '../../utils/authUtils';
+import { useAuth } from '../../hooks/useAuth';
 
 interface InviteTeamMembersRootProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -32,6 +33,7 @@ const InviteTeamMembersRoot = React.forwardRef<
 ) {
   const pathname = usePathname();
   const router = useRouter();
+  const { session } = useAuth();
   
   const handleLogout = async () => {
     const { success } = await logoutUser();
@@ -61,14 +63,14 @@ const InviteTeamMembersRoot = React.forwardRef<
           <>
             <div className="flex grow shrink-0 basis-0 items-start gap-2">
               <Avatar image="https://res.cloudinary.com/subframe/image/upload/v1711417513/shared/kwut7rhuyivweg8tmyzl.jpg">
-                A
+                {session?.user?.email?.charAt(0).toUpperCase() || 'A'}
               </Avatar>
               <div className="flex flex-col items-start">
                 <span className="text-caption-bold font-caption-bold text-default-font">
-                  Irvin
+                  {session?.user?.email?.split('@')[0] || 'User'}
                 </span>
                 <span className="text-caption font-caption text-subtext-color">
-                  Founder
+                  {session?.user?.email || 'No email'}
                 </span>
               </div>
             </div>

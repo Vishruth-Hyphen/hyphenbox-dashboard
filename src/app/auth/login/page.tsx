@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { TextField } from "@/ui/components/TextField";
 import { Button } from "@/ui/components/Button";
+import { LinkButton } from "@/ui/components/LinkButton";
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
@@ -55,43 +56,66 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-md">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold">Sign In to HyphenBox</h1>
-          <p className="text-gray-600">Enter your email to receive a magic link</p>
+    <div className="flex h-full w-full flex-wrap items-start bg-default-background mobile:flex-col mobile:flex-wrap mobile:gap-0">
+      <div className="flex max-w-[576px] grow shrink-0 basis-0 flex-col items-center gap-12 self-stretch bg-brand-600 px-12 py-12 mobile:h-auto mobile:w-full mobile:flex-none">
+        <div className="flex w-full max-w-[448px] grow shrink-0 basis-0 flex-col items-start justify-center gap-12 mobile:h-auto mobile:w-full mobile:max-w-[448px] mobile:flex-none">
+          <img
+            className="h-12 flex-none object-cover"
+            src="https://res.cloudinary.com/subframe/image/upload/v1742091466/uploads/5582/svy6lyqqwqice1toqymg.png"
+          />
         </div>
-        
-        <form onSubmit={handleLogin}>
-          <div className="mb-4">
-            <label htmlFor="email" className="mb-2 block text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 p-2"
-              placeholder="your@email.com"
-              required
-            />
+      </div>
+      <div className="flex grow shrink-0 basis-0 flex-col items-center justify-center gap-6 self-stretch border-l border-solid border-neutral-border px-12 py-12">
+        <div className="flex w-full max-w-[448px] flex-col items-start justify-center gap-8">
+          <div className="flex w-full flex-col items-center justify-center gap-1">
+            <span className="w-full text-heading-2 font-heading-2 text-default-font text-center">
+              Sign In
+            </span>
           </div>
-          
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white"
-            disabled={loading}
+          <form onSubmit={handleLogin} className="w-full">
+            <div className="flex w-full flex-col items-start justify-center gap-4">
+              <div className="flex w-full items-center gap-2">
+                <TextField
+                  className="h-auto grow shrink-0 basis-0"
+                  label=""
+                  helpText=""
+                  icon="FeatherMail"
+                >
+                  <TextField.Input
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    type="email"
+                    required
+                  />
+                </TextField>
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Sending..." : "Login"}
+                </Button>
+              </div>
+              {message && (
+                <div className="text-sm font-medium text-green-600 w-full text-center">
+                  {message}
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+        <div className="flex flex-wrap items-start gap-2">
+          <span className="text-body font-body text-subtext-color">
+            Don&#39;t have an account?
+          </span>
+          <LinkButton
+            variant="brand"
+            iconRight="FeatherChevronRight"
+            onClick={() => window.open('https://hyphenbox.com', '_blank')}
           >
-            {loading ? "Sending..." : "Send Magic Link"}
-          </button>
-        </form>
-        
-        {message && (
-          <div className="mt-4 text-center text-sm font-medium text-green-600">
-            {message}
-          </div>
-        )}
+            Try Hyphenbox today
+          </LinkButton>
+        </div>
       </div>
     </div>
   );
