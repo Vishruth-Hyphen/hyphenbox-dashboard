@@ -12,7 +12,7 @@ import { IconButton } from "@/ui/components/IconButton";
 import { ListRow } from "@/ui/components/ListRow";
 import { Alert } from "@/ui/components/Alert";
 import { DialogLayout } from "@/ui/layouts/DialogLayout";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, useOrganization } from "@/hooks/useAuth";
 import { 
   fetchResources, 
   uploadFile, 
@@ -23,9 +23,13 @@ import {
   type KnowledgeResource
 } from "@/utils/knowledgeResources";
 import { formatRelativeTime } from "@/utils/dateUtils";
+import { Badge } from "@/ui/components/Badge";
+import { useRouter } from "next/navigation";
 
 function Knowledge() {
   const { session } = useAuth();
+  const { currentOrgId, currentOrgName } = useOrganization();
+  const router = useRouter();
   
   // States for resources
   const [resources, setResources] = useState<KnowledgeResource[]>([]);
@@ -47,14 +51,14 @@ function Knowledge() {
 
   // Fetch resources on component mount
   useEffect(() => {
-    if (session?.selectedOrganizationId) {
+    if (currentOrgId) {
       loadResources();
     }
-  }, [session]);
+  }, [currentOrgId]);
 
   // Function to load resources
   const loadResources = async () => {
-    if (!session?.selectedOrganizationId) {
+    if (!currentOrgId) {
       setError("No organization selected");
       return;
     }
@@ -63,9 +67,7 @@ function Knowledge() {
     setError(null);
     
     try {
-      const organizationId = session.selectedOrganizationId;
-      
-      const { data, error: fetchError } = await fetchResources(organizationId);
+      const { data, error: fetchError } = await fetchResources(currentOrgId);
       
       if (fetchError) {
         throw new Error("Failed to load knowledge resources");
@@ -82,7 +84,7 @@ function Knowledge() {
 
   // Handle file input change
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !session?.selectedOrganizationId || !session?.user?.id) {
+    if (!event.target.files || event.target.files.length === 0 || !currentOrgId || !session?.user?.id) {
       setError("Missing required information. Please try again or refresh the page.");
       return;
     }
@@ -91,14 +93,13 @@ function Knowledge() {
     setError(null);
     
     try {
-      const organizationId = session.selectedOrganizationId;
       const userId = session.user.id;
       
       const files = Array.from(event.target.files);
       
       // If multiple files, use bulk upload
       if (files.length > 1) {
-        const result = await uploadMultipleFiles(files, organizationId, userId);
+        const result = await uploadMultipleFiles(files, currentOrgId, userId);
         
         if (!result.success) {
           throw new Error(`Some files failed to upload: ${result.errors.length} errors`);
@@ -107,7 +108,7 @@ function Knowledge() {
         setSuccessMessage(`Successfully uploaded ${result.resources.length} files`);
       } else {
         // Single file upload
-        const result = await uploadFile(files[0], organizationId, userId);
+        const result = await uploadFile(files[0], currentOrgId, userId);
         
         if (!result.success) {
           throw new Error("Failed to upload file");
@@ -144,7 +145,7 @@ function Knowledge() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     
-    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0 || !session?.selectedOrganizationId || !session?.user?.id) {
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0 || !currentOrgId || !session?.user?.id) {
       setError("Missing required information. Please try again or refresh the page.");
       return;
     }
@@ -153,13 +154,12 @@ function Knowledge() {
     setError(null);
     
     try {
-      const organizationId = session.selectedOrganizationId;
       const userId = session.user.id;
       
       const files = Array.from(e.dataTransfer.files);
       
       // Use bulk upload for all files
-      const result = await uploadMultipleFiles(files, organizationId, userId);
+      const result = await uploadMultipleFiles(files, currentOrgId, userId);
       
       if (!result.success) {
         throw new Error(`Some files failed to upload: ${result.errors.length} errors`);
@@ -184,7 +184,7 @@ function Knowledge() {
 
   // Handle URL submission
   const handleAddLink = async () => {
-    if (!linkUrl.trim() || !session?.selectedOrganizationId || !session?.user?.id) {
+    if (!linkUrl.trim() || !currentOrgId || !session?.user?.id) {
       setError("Missing required information. Please provide a URL and try again.");
       return;
     }
@@ -193,7 +193,6 @@ function Knowledge() {
     setError(null);
     
     try {
-      const organizationId = session.selectedOrganizationId;
       const userId = session.user.id;
       
       // Try to extract name from URL
@@ -206,7 +205,7 @@ function Knowledge() {
         name = linkUrl;
       }
       
-      const result = await addLink(linkUrl, name, organizationId, userId);
+      const result = await addLink(linkUrl, name, currentOrgId, userId);
       
       if (!result.success) {
         throw new Error("Failed to add link");
@@ -238,17 +237,15 @@ function Knowledge() {
 
   // Handle resource deletion
   const confirmDelete = async () => {
-    if (!resourceToDelete || !session?.selectedOrganizationId) {
+    if (!resourceToDelete || !currentOrgId) {
       setError("Missing required information. Please try again.");
       return;
     }
     
     try {
-      const organizationId = session.selectedOrganizationId;
-      
       const { success, error: deleteError } = await deleteResource(
         resourceToDelete.id,
-        organizationId
+        currentOrgId
       );
       
       if (!success) {
@@ -276,17 +273,15 @@ function Knowledge() {
 
   // Handle resource download/open
   const handleOpenResource = async (resource: KnowledgeResource) => {
-    if (!session?.selectedOrganizationId) {
+    if (!currentOrgId) {
       setError("No organization selected");
       return;
     }
     
     try {
-      const organizationId = session.selectedOrganizationId;
-      
       const { url, error: urlError } = await getDownloadUrl(
         resource.id,
-        organizationId
+        currentOrgId
       );
       
       if (!url) {
@@ -341,15 +336,32 @@ function Knowledge() {
 
   return (
     <InviteTeamMembers>
-      <div className="flex h-full w-full flex-col items-start">
+      <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 px-8 py-12 bg-gray-50">
+        <Breadcrumbs>
+          <Breadcrumbs.Item>Workspace</Breadcrumbs.Item>
+          <Breadcrumbs.Divider />
+          <Breadcrumbs.Item active={true}>Knowledge</Breadcrumbs.Item>
+        </Breadcrumbs>
+        
+        {/* Show org name for super admins */}
+        {session?.user?.is_super_admin && currentOrgName && (
+          <div className="w-full mb-2">
+            <div className="flex items-center">
+              <Badge variant="neutral">Organization: {currentOrgName}</Badge>
+              <Button 
+                variant="neutral-tertiary" 
+                size="small"
+                className="ml-2"
+                onClick={() => router.push('/dashboard/organizations')}
+              >
+                Change
+              </Button>
+            </div>
+          </div>
+        )}
+        
         <div className="flex w-full flex-col items-center gap-4 bg-default-background px-12 py-12 overflow-auto">
           <div className="flex w-full max-w-[768px] flex-col items-start gap-8">
-            <Breadcrumbs>
-              <Breadcrumbs.Item>Guide</Breadcrumbs.Item>
-              <Breadcrumbs.Divider />
-              <Breadcrumbs.Item active={true}>Knowledge</Breadcrumbs.Item>
-            </Breadcrumbs>
-            
             {/* Success and error messages */}
             {successMessage && (
               <Alert

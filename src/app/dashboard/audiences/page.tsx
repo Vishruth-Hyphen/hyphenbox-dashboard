@@ -13,6 +13,7 @@ import { TextField } from "@/ui/components/TextField";
 import { Select } from "@/ui/components/Select";
 import { Alert } from "@/ui/components/Alert";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useAuth";
 import { 
   fetchAudiences,
   fetchAudienceFlowCounts,
@@ -25,9 +26,13 @@ import {
 } from "@/utils/cursorflows";
 import { type CursorFlow } from "@/lib/supabase";
 import { formatRelativeTime } from "@/utils/dateUtils";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/ui/components/Badge";
 
 function Audiences() {
   const { session } = useAuth();
+  const { getOrganizationId, currentOrgId, currentOrgName } = useOrganization();
+  const router = useRouter();
   
   // State for audiences and cursor flows
   const [audiences, setAudiences] = useState<AudienceData[]>([]);
@@ -47,16 +52,25 @@ function Audiences() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load audiences and cursor flows on component mount
+  // Initialize organization context and load data
   useEffect(() => {
-    if (session?.selectedOrganizationId) {
-      loadData();
+    if (session?.user && currentOrgId) {
+      loadData(currentOrgId);
+    } else if (session?.user) {
+      const orgId = getOrganizationId();
+      if (orgId) {
+        loadData(orgId);
+      } else {
+        // Make sure loading state is cleared even if no org ID is found
+        setIsLoading(false);
+      }
     }
-  }, [session]);
+  }, [session, currentOrgId, getOrganizationId]);
 
-  const loadData = async () => {
-    if (!session?.selectedOrganizationId) {
+  const loadData = async (orgId: string) => {
+    if (!orgId) {
       setError("No organization selected");
+      setIsLoading(false);
       return;
     }
     
@@ -64,10 +78,10 @@ function Audiences() {
     setError(null);
     
     try {
-      const organizationId = session.selectedOrganizationId;
+      // Use the passed organizationId parameter instead of session.selectedOrganizationId
       
       // Load audiences
-      const { data: audiencesData, error: audiencesError } = await fetchAudiences(organizationId);
+      const { data: audiencesData, error: audiencesError } = await fetchAudiences(orgId);
       
       if (audiencesError) {
         console.error('Error fetching audiences:', audiencesError);
@@ -88,7 +102,7 @@ function Audiences() {
       }
       
       // We continue to load all flows for the main page view
-      const { data: allFlowsData, error: allFlowsError } = await fetchCursorFlows(organizationId);
+      const { data: allFlowsData, error: allFlowsError } = await fetchCursorFlows(orgId);
       
       if (allFlowsError) {
         console.error('Error fetching all cursor flows:', allFlowsError);
@@ -97,7 +111,7 @@ function Audiences() {
       }
       
       // Load only unassigned cursor flows for the dropdown in the create audience modal
-      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(organizationId);
+      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(orgId);
       
       if (unassignedFlowsError) {
         console.error('Error fetching unassigned cursor flows:', unassignedFlowsError);
@@ -148,7 +162,7 @@ function Audiences() {
   
   // Handle creating a new audience
   const handleCreateAudience = async () => {
-    if (!audienceName.trim() || !session?.selectedOrganizationId || !session?.user?.id) {
+    if (!audienceName.trim() || !currentOrgId || !session?.user?.id) {
       setError('Please provide an audience name and ensure you are logged in');
       return;
     }
@@ -157,14 +171,13 @@ function Audiences() {
     setError(null);
     
     try {
-      const organizationId = session.selectedOrganizationId;
       const userId = session.user.id;
       
       const { success, audienceId, error: createError } = await createAudienceWithFlows(
         {
           name: audienceName,
           description: audienceDescription,
-          organization_id: organizationId,
+          organization_id: currentOrgId,
           created_by: userId
         },
         selectedCursorFlowIds
@@ -180,7 +193,7 @@ function Audiences() {
       setSuccessMessage('Audience created successfully!');
       
       // Reload audiences to get the updated list
-      const { data: refreshedAudiences } = await fetchAudiences(organizationId);
+      const { data: refreshedAudiences } = await fetchAudiences(currentOrgId);
       if (refreshedAudiences) {
         setAudiences(refreshedAudiences);
         
@@ -216,13 +229,12 @@ function Audiences() {
     try {
       setError(null);
       
-      if (!session?.selectedOrganizationId) {
+      if (!currentOrgId) {
         setError("No organization selected");
         return;
       }
       
-      const organizationId = session.selectedOrganizationId;
-      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(organizationId);
+      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(currentOrgId);
       
       if (unassignedFlowsError) {
         console.error('Error fetching unassigned cursor flows:', unassignedFlowsError);
@@ -246,6 +258,7 @@ function Audiences() {
             <Breadcrumbs.Divider />
             <Breadcrumbs.Item active={true}>Audiences</Breadcrumbs.Item>
           </Breadcrumbs>
+          
           <Button
             icon="FeatherPlus"
             onClick={handleOpenCreateDialog}
@@ -253,6 +266,23 @@ function Audiences() {
             Create Audience
           </Button>
         </div>
+        
+        {/* Show org name for super admins */}
+        {session?.user?.is_super_admin && currentOrgName && (
+          <div className="w-full mb-2">
+            <div className="flex items-center">
+              <Badge variant="neutral">Organization: {currentOrgName}</Badge>
+              <Button 
+                variant="neutral-tertiary" 
+                size="small"
+                className="ml-2"
+                onClick={() => router.push('/dashboard/organizations')}
+              >
+                Change
+              </Button>
+            </div>
+          </div>
+        )}
         
         {successMessage && (
           <Alert

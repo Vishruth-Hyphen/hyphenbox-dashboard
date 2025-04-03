@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useContext } from "react";
 import { useSearchParams } from "next/navigation";
 import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
@@ -27,10 +27,16 @@ import { getBadgeVariantForStatus } from "@/utils/cursorflows";
 import { DialogLayout } from "@/ui/layouts/DialogLayout";
 import { TextField } from "@/ui/components/TextField";
 import { Select } from "@/ui/components/Select";
+import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 
 function AudienceFlowsContent() {
   const searchParams = useSearchParams();
   const audienceId = searchParams.get("id");
+  const { session } = useAuth();
+  const { getOrganizationId, currentOrgId, currentOrgName } = useOrganization();
+  const router = useRouter();
   
   const [audience, setAudience] = useState<AudienceData | null>(null);
   const [flows, setFlows] = useState<CursorFlow[]>([]);
@@ -55,12 +61,18 @@ function AudienceFlowsContent() {
         return;
       }
 
+      if (!currentOrgId) {
+        setError("No organization selected");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       
       try {
-        // Fetch audience details
-        const { data: audiencesData, error: audienceError } = await fetchAudiences();
+        // Fetch audience details - pass organizationId for filtering
+        const { data: audiencesData, error: audienceError } = await fetchAudiences(currentOrgId);
         if (audienceError) {
           throw new Error("Failed to load audience details");
         }
@@ -87,8 +99,10 @@ function AudienceFlowsContent() {
       }
     };
     
-    loadData();
-  }, [audienceId]);
+    if (audienceId && currentOrgId) {
+      loadData();
+    }
+  }, [audienceId, currentOrgId]);
 
   // Handle removing a flow from the audience
   const handleRemoveFlow = async (flowId: string) => {
@@ -120,13 +134,13 @@ function AudienceFlowsContent() {
 
   // Handle opening the add flows dialog
   const handleOpenAddFlowsDialog = async () => {
-    if (!audienceId) return;
+    if (!audienceId || !currentOrgId) return;
     setError(null);
     setIsAddFlowsDialogOpen(true);
     
     try {
-      // Load unassigned flows
-      const { data, error: fetchError } = await fetchUnassignedCursorFlows();
+      // Load unassigned flows with organization filtering
+      const { data, error: fetchError } = await fetchUnassignedCursorFlows(currentOrgId);
       
       if (fetchError) {
         throw new Error("Failed to load available flows");
@@ -219,6 +233,23 @@ function AudienceFlowsContent() {
           <Breadcrumbs.Divider />
           <Breadcrumbs.Item active={true}>{audience?.name || "Loading..."}</Breadcrumbs.Item>
         </Breadcrumbs>
+        
+        {/* Show org name for super admins */}
+        {session?.user?.is_super_admin && currentOrgName && (
+          <div className="w-full mb-2">
+            <div className="flex items-center">
+              <Badge variant="neutral">Organization: {currentOrgName}</Badge>
+              <Button 
+                variant="neutral-tertiary" 
+                size="small"
+                className="ml-2"
+                onClick={() => router.push('/dashboard/organizations')}
+              >
+                Change
+              </Button>
+            </div>
+          </div>
+        )}
         
         {successMessage && (
           <Alert

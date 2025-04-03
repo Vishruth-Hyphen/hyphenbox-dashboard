@@ -11,8 +11,10 @@ import { Badge } from "@/ui/components/Badge";
 import { Avatar } from "@/ui/components/Avatar";
 import { IconButton } from "@/ui/components/IconButton";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from '@/hooks/useAuth';
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
+import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 
 type Invitation = {
   id: string;
@@ -30,6 +32,7 @@ function TeamContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { session } = useAuth();
+  const { currentOrgId, currentOrgName } = useOrganization();
   
   const [inviteEmail, setInviteEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,72 +40,9 @@ function TeamContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Get organization ID using the same approach as in cursorflows page
-  const getOrganizationId = useCallback(() => {
-    // Check URL params first (used when super admin selects an org)
-    const orgFromUrl = searchParams.get('org');
-    if (orgFromUrl) return orgFromUrl;
-    
-    // For regular users, use their selected organization from session
-    if (session?.selectedOrganizationId) return session.selectedOrganizationId;
-    
-    // Check localStorage for selectedOrganizationId
-    try {
-      const savedOrgId = localStorage.getItem('selectedOrganizationId');
-      if (savedOrgId) return savedOrgId;
-    } catch (e) {
-      console.error('Error reading selectedOrganizationId from localStorage:', e);
-    }
-    
-    // For super admin, check localStorage for previously selected org
-    if (session?.user?.is_super_admin) {
-      try {
-        const savedOrg = localStorage.getItem('selectedOrganization');
-        if (savedOrg) {
-          const parsedOrg = JSON.parse(savedOrg);
-          return parsedOrg.id;
-        }
-      } catch (e) {
-        console.error('Error reading selected organization from localStorage:', e);
-      }
-    }
-    
-    // If all else fails, redirect to org selection for super admin
-    if (session?.user?.is_super_admin) {
-      router.push('/dashboard/organizations');
-      return null;
-    }
-    
-    return null;
-  }, [searchParams, session, router]);
-  
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [organizationName, setOrganizationName] = useState<string | null>(null);
-
-  // Set up organization ID on component mount and when session changes
-  useEffect(() => {
-    if (session?.user) {
-      const orgId = getOrganizationId();
-      setOrganizationId(orgId);
-      
-      // Try to get org name for super admin
-      if (session?.user?.is_super_admin) {
-        try {
-          const savedOrg = localStorage.getItem('selectedOrganization');
-          if (savedOrg) {
-            const parsedOrg = JSON.parse(savedOrg);
-            setOrganizationName(parsedOrg.name);
-          }
-        } catch (e) {
-          console.error('Error reading organization name:', e);
-        }
-      }
-    }
-  }, [session, getOrganizationId]);
-
   // Function to load team invitations
   const loadInvitations = useCallback(async () => {
-    if (!organizationId) return;
+    if (!currentOrgId) return;
     
     setLoading(true);
     try {
@@ -116,7 +56,7 @@ function TeamContent() {
           created_at,
           created_by
         `)
-        .eq('organization_id', organizationId);
+        .eq('organization_id', currentOrgId);
       
       if (error) throw error;
       
@@ -152,18 +92,18 @@ function TeamContent() {
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [currentOrgId]);
 
   // Load invitations when organizationId is available
   useEffect(() => {
-    if (organizationId) {
+    if (currentOrgId) {
       loadInvitations();
     }
-  }, [organizationId, loadInvitations]);
+  }, [currentOrgId, loadInvitations]);
 
   // Function to send invitation
   const sendInvite = async () => {
-    if (!inviteEmail.trim() || !organizationId || !session?.user?.id) {
+    if (!inviteEmail.trim() || !currentOrgId || !session?.user?.id) {
       setError('Please enter a valid email address');
       return;
     }
@@ -180,7 +120,7 @@ function TeamContent() {
         },
         body: JSON.stringify({
           email: inviteEmail.trim(),
-          organizationId,
+          organizationId: currentOrgId,
           userId: session.user.id
         }),
       });
@@ -224,7 +164,7 @@ function TeamContent() {
   };
 
   // If no organization ID is available, show loading or error state
-  if (!organizationId) {
+  if (!currentOrgId) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -250,9 +190,9 @@ function TeamContent() {
           </div>
           
           {/* Show org name for super admins */}
-          {session?.user?.is_super_admin && organizationName && (
+          {session?.user?.is_super_admin && currentOrgName && (
             <div className="flex items-center">
-              <Badge variant="neutral">Organization: {organizationName}</Badge>
+              <Badge variant="neutral">Organization: {currentOrgName}</Badge>
               <Button 
                 variant="neutral-tertiary" 
                 size="small"

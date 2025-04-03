@@ -14,6 +14,7 @@ import { DialogLayout } from "@/ui/layouts/DialogLayout";
 import { IconWithBackground } from "@/ui/components/IconWithBackground";
 import { type CursorFlow } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useAuth";
 import { 
   fetchCursorFlows, 
   fetchCursorFlowsWithAudiences,
@@ -30,6 +31,7 @@ function CursorFlowsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { session } = useAuth();
+  const { getOrganizationId, currentOrgId, currentOrgName } = useOrganization();
   
   // State to control the open/closed state of the upload dialog
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -57,77 +59,13 @@ function CursorFlowsContent() {
   // Add a new state variable for Flow ID
   const [flowId, setFlowId] = useState("");
 
-  // Fetch cursor flows on component mount
-  // Store organization info
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  // Organization name for display
-  const [organizationName, setOrganizationName] = useState<string | null>(null);
-
-  // Function to get the organization ID from URL params or session
-  const getOrganizationId = useCallback(() => {
-    // Check URL params first (used when super admin selects an org)
-    const orgFromUrl = searchParams.get('org');
-    if (orgFromUrl) return orgFromUrl;
-    
-    // For regular users, use their selected organization from session
-    if (session?.selectedOrganizationId) return session.selectedOrganizationId;
-    
-    // Check localStorage for selectedOrganizationId
-    try {
-      const savedOrgId = localStorage.getItem('selectedOrganizationId');
-      if (savedOrgId) return savedOrgId;
-    } catch (e) {
-      console.error('Error reading selectedOrganizationId from localStorage:', e);
-    }
-    
-    // For super admin, check localStorage for previously selected org
-    if (session?.user?.is_super_admin) {
-      try {
-        const savedOrg = localStorage.getItem('selectedOrganization');
-        if (savedOrg) {
-          const parsedOrg = JSON.parse(savedOrg);
-          return parsedOrg.id;
-        }
-      } catch (e) {
-        console.error('Error reading selected organization from localStorage:', e);
-      }
-    }
-    
-    // If all else fails, redirect to org selection for super admin
-    if (session?.user?.is_super_admin) {
-      router.push('/dashboard/organizations');
-      return null;
-    }
-    
-    return null;
-  }, [searchParams, session, router]);
-
-  // Set up organization ID on component mount and when session changes
-  useEffect(() => {
-    if (session?.user) {
-      const orgId = getOrganizationId();
-      setOrganizationId(orgId);
-      
-      // Try to get org name for super admin
-      try {
-        const savedOrg = localStorage.getItem('selectedOrganization');
-        if (savedOrg) {
-          const parsedOrg = JSON.parse(savedOrg);
-          setOrganizationName(parsedOrg.name);
-        }
-      } catch (e) {
-        console.error('Error reading organization name:', e);
-      }
-    }
-  }, [session, getOrganizationId]);
-
-  // Function to load cursor flows data
-  const loadCursorFlows = useCallback(async () => {
-    if (!organizationId) return;
+  // Function to load cursor flows data - update to take organizationId parameter
+  const loadCursorFlows = useCallback(async (orgId: string) => {
+    if (!orgId) return;
     
     setIsLoading(true);
     try {
-      const { data, error } = await fetchCursorFlowsWithAudiences(organizationId);
+      const { data, error } = await fetchCursorFlowsWithAudiences(orgId);
       
       if (error) {
         console.error('Error fetching cursor flows:', error);
@@ -140,14 +78,15 @@ function CursorFlowsContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [organizationId]);
+  }, []);
 
-  // Fetch cursor flows when organizationId is available
+  // Update effect to use currentOrgId directly
   useEffect(() => {
-    if (organizationId) {
-      loadCursorFlows();
+    // If the organization ID is available from the hook, load the data
+    if (currentOrgId) {
+      loadCursorFlows(currentOrgId);
     }
-  }, [organizationId, loadCursorFlows]);
+  }, [currentOrgId, loadCursorFlows]); // depend on currentOrgId and loadCursorFlows
 
   // Function to handle file selection
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +113,7 @@ function CursorFlowsContent() {
 
   // Function to handle the JSON upload
   const handleUploadJson = async () => {
-    if (!selectedFile || !flowName.trim() || !organizationId || !session?.user?.id) {
+    if (!selectedFile || !flowName.trim() || !currentOrgId || !session?.user?.id) {
       alert('Please select a file and enter a name for the flow. Missing required information.');
       return;
     }
@@ -184,7 +123,7 @@ function CursorFlowsContent() {
       const result = await processJsonForCursorFlow(
         selectedFile,
         flowName,
-        organizationId,
+        currentOrgId,
         session.user.id
       );
 
@@ -209,7 +148,9 @@ function CursorFlowsContent() {
       alert(message);
 
       // Refresh the cursor flows list
-      await loadCursorFlows();
+      if (currentOrgId) {
+        await loadCursorFlows(currentOrgId);
+      }
       
       // Close the dialog and reset state
       setIsUploadDialogOpen(false);
@@ -241,7 +182,9 @@ function CursorFlowsContent() {
       
       if (success) {
         // Refresh the list after successful deletion
-        await loadCursorFlows();
+        if (currentOrgId) {
+          await loadCursorFlows(currentOrgId);
+        }
         setDeleteDialogOpen(false);
         setFlowToDelete(null);
       } else {
@@ -256,7 +199,7 @@ function CursorFlowsContent() {
 
   // Function to handle flow request submission
   const handleFlowRequestSubmit = async () => {
-    if (!requestFlowName.trim() || !organizationId || !session?.user?.id) {
+    if (!requestFlowName.trim() || !currentOrgId || !session?.user?.id) {
       alert('Please enter a flow name and ensure you are logged in.');
       return;
     }
@@ -265,7 +208,7 @@ function CursorFlowsContent() {
       const { success, error, flowId } = await createCursorFlowRequest(
         requestFlowName,
         requestFlowContext || null,
-        organizationId,
+        currentOrgId,
         session.user.id
       );
       
@@ -273,7 +216,9 @@ function CursorFlowsContent() {
         alert('Flow request submitted successfully! Our team will create this flow for you.');
         
         // Refresh the cursor flows list to show the requested flow
-        await loadCursorFlows();
+        if (currentOrgId) {
+          await loadCursorFlows(currentOrgId);
+        }
         
         // Close the dialog and reset state
         setIsRequestFlowDialogOpen(false);
@@ -290,7 +235,7 @@ function CursorFlowsContent() {
   };
 
   // If no organization ID is available, show loading or error state
-  if (!organizationId) {
+  if (!currentOrgId) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -311,10 +256,10 @@ function CursorFlowsContent() {
         </Breadcrumbs>
         
         {/* Show org name for super admins */}
-        {session?.user?.is_super_admin && organizationName && (
+        {session?.user?.is_super_admin && currentOrgName && (
           <div className="w-full mb-2">
             <div className="flex items-center">
-              <Badge variant="neutral">Organization: {organizationName}</Badge>
+              <Badge variant="neutral">Organization: {currentOrgName}</Badge>
               <Button 
                 variant="neutral-tertiary" 
                 size="small"

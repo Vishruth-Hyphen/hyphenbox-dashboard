@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 
 type Organization = {
@@ -12,6 +13,7 @@ type Organization = {
 
 export default function OrganizationsPage() {
   const { session } = useAuth();
+  const { switchOrganization } = useOrganization();
   const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,16 +45,11 @@ export default function OrganizationsPage() {
 
   const selectOrganization = async (org: Organization) => {
     try {
-      // Store the selected organization in localStorage for persistence
-      localStorage.setItem('selectedOrganization', JSON.stringify({
-        id: org.id,
-        name: org.name
-      }));
-      
-      console.log(`Selected organization: ${org.name} (${org.id})`);
+      // Use the switchOrganization function from the hook
+      switchOrganization(org.id, org.name);
       
       // Navigate to the organization's dashboard
-      router.push(`/dashboard/cursorflows?org=${org.id}`);
+      router.push('/dashboard/cursorflows');
     } catch (error) {
       console.error('Error selecting organization:', error);
     }

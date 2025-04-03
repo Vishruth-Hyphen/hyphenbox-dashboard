@@ -36,7 +36,7 @@ import {
 } from "@/utils/element-utils";
 
 // Placeholder image when no screenshot is available
-const PLACEHOLDER_IMAGE = "https://gazvscvowgdojkbkxnmk.supabase.co/storage/v1/object/public/screenshots//Screenshot%202025-03-19%20at%209.47.29%20PM.png";
+// const PLACEHOLDER_IMAGE = "https://gazvscvowgdojkbkxnmk.supabase.co/storage/v1/object/public/screenshots//Screenshot%202025-03-19%20at%209.47.29%20PM.png";
 
 // Create a wrapper component that uses searchParams
 function CursorFlowPreviewContent() {
@@ -137,37 +137,58 @@ function CursorFlowPreviewContent() {
     if (draggingStepId !== stepId || !dragStartPos) return;
     
     const step = steps.find(s => s.id === stepId);
-    if (!step || !step.step_data?.position) return;
+    if (!step || step.cursor_position_x === undefined || step.cursor_position_y === undefined) {
+      console.error('Missing cursor position data for step:', stepId);
+      return;
+    }
     
     const imageContainer = imageContainerRefs.current[stepId];
     if (!imageContainer) return;
     
     // Get container dimensions
-    const rect = imageContainer.getBoundingClientRect();
+    const containerRect = imageContainer.getBoundingClientRect();
     
-    // Calculate mouse movement
-    const deltaX = event.clientX - dragStartPos.x;
-    const deltaY = event.clientY - dragStartPos.y;
+    // Find the actual image element within the container
+    const imageElement = imageContainer.querySelector('img');
+    if (!imageElement) {
+      console.error('Image element not found in container');
+      return;
+    }
     
-    // Calculate new cursor position
-    const oldPos = step.step_data.position;
-    let newX = oldPos.x + deltaX;
-    let newY = oldPos.y + deltaY;
+    // Get image dimensions and position within the container
+    const imageRect = imageElement.getBoundingClientRect();
     
-    // Confine to container bounds
-    newX = Math.max(0, Math.min(newX, rect.width));
-    newY = Math.max(0, Math.min(newY, rect.height));
+    // Get viewport data from step data
+    const viewport = step.step_data.element?.viewport || {
+      width: 1920,
+      height: 1080,
+    };
     
-    // Update step in local state with new position
+    // Use container dimensions for calculations instead of image dimensions
+    // This allows positioning throughout the container
+    const deltaXPercent = ((event.clientX - dragStartPos.x) / containerRect.width) * 100;
+    const deltaYPercent = ((event.clientY - dragStartPos.y) / containerRect.height) * 100;
+    
+    // Calculate actual pixel movement based on original viewport
+    const deltaX = (deltaXPercent / 100) * viewport.width;
+    const deltaY = (deltaYPercent / 100) * viewport.height;
+    
+    // Calculate new cursor position using only dedicated columns
+    let newX = step.cursor_position_x + deltaX;
+    let newY = step.cursor_position_y + deltaY;
+    
+    // Confine to viewport bounds
+    newX = Math.max(0, Math.min(newX, viewport.width));
+    newY = Math.max(0, Math.min(newY, viewport.height));
+    
+    // Update step in local state with new position in dedicated columns only
     setSteps(prevSteps => 
       prevSteps.map(s => 
         s.id === stepId 
           ? {
               ...s,
-              step_data: {
-                ...s.step_data,
-                position: { x: newX, y: newY }
-              }
+              cursor_position_x: newX,
+              cursor_position_y: newY
             }
           : s
       )
@@ -184,7 +205,20 @@ function CursorFlowPreviewContent() {
   };
   
   // Function to end dragging
-  const handleEndDrag = () => {
+  const handleEndDrag = async () => {
+    if (draggingStepId) {
+      const step = steps.find(s => s.id === draggingStepId);
+      if (step && step.cursor_position_x !== undefined && step.cursor_position_y !== undefined) {
+        // Save position using dedicated columns
+        await saveCursorPosition(draggingStepId, {
+          x: step.cursor_position_x,
+          y: step.cursor_position_y
+        });
+      } else {
+        console.error('Missing cursor position data for step:', draggingStepId);
+      }
+    }
+    
     setDraggingStepId(null);
     setDragStartPos(null);
   };
@@ -382,57 +416,54 @@ function CursorFlowPreviewContent() {
     );
   };
 
-  // Updated function to use viewport data from step_data
+  // Updated getCursorPositionPercentage function to use dedicated columns
   const getCursorPositionPercentage = (step: any) => {
-    if (!step || !step.step_data || !step.step_data.position) return null;
-    
-    // Get cursor position from step data
-    const cursorPosition = {
-      x: step.step_data.position.x,
-      y: step.step_data.position.y
-    };
+    if (step.cursor_position_x === undefined || step.cursor_position_y === undefined) {
+      console.error('Missing cursor position data for step:', step.id);
+      return null;
+    }
     
     // Get viewport data from step data
     const viewport = step.step_data.element?.viewport || {
-      width: 1920, // fallback values if viewport data isn't available
+      width: 1920,
       height: 1080,
       scrollX: 0,
       scrollY: 0,
       devicePixelRatio: 1
     };
     
-    // Calculate absolute position (accounting for scroll)
-    const absoluteX = cursorPosition.x + (viewport.scrollX || 0);
-    const absoluteY = cursorPosition.y + (viewport.scrollY || 0);
-    
     // Calculate percentages based on viewport dimensions
-    const xPercent = (absoluteX / viewport.width) * 100;
-    const yPercent = (absoluteY / viewport.height) * 100;
+    const xPercent = (step.cursor_position_x / viewport.width) * 100;
+    const yPercent = (step.cursor_position_y / viewport.height) * 100;
     
-    // Apply device pixel ratio correction if needed
-    // (only if your screenshots don't already account for this)
-    // const correctedXPercent = xPercent / viewport.devicePixelRatio;
-    // const correctedYPercent = yPercent / viewport.devicePixelRatio;
-    
-    return {
-      xPercent,
-      yPercent
-    };
+    return { xPercent, yPercent };
   };
 
   // Update the CursorOverlay component to add debugging info if needed
   const CursorOverlay = ({ step, text }: { step: any; text: string }) => {
-    const positionPercentage = getCursorPositionPercentage(step);
     const isCurrentlyDragging = draggingStepId === step.id;
     
-    if (!positionPercentage) return null;
+    if (step.cursor_position_x === undefined || step.cursor_position_y === undefined) {
+      console.error('Missing cursor position data for step:', step.id);
+      return null;
+    }
+    
+    // Get viewport data from step data
+    const viewport = step.step_data.element?.viewport || {
+      width: 1920,
+      height: 1080
+    };
+    
+    // Calculate position as percentage of original viewport using dedicated columns
+    const xPercent = (step.cursor_position_x / viewport.width) * 100;
+    const yPercent = (step.cursor_position_y / viewport.height) * 100;
     
     return (
       <div 
         className={`absolute pointer-events-auto ${isCurrentlyDragging ? 'z-50' : 'z-10'} ${flow.status === 'draft' ? 'cursor-move' : 'pointer-events-none'}`}
         style={{
-          left: `${positionPercentage.xPercent}%`,
-          top: `${positionPercentage.yPercent}%`,
+          left: `${xPercent}%`,
+          top: `${yPercent}%`,
           transform: `translate(-50%, -50%) ${isCurrentlyDragging ? 'scale(1.2)' : ''}`,
           transition: isCurrentlyDragging ? 'none' : 'transform 0.2s ease'
         }}
@@ -461,7 +492,7 @@ function CursorFlowPreviewContent() {
     );
   };
 
-  // Add this useEffect for window-level event handlers
+  // Update window-level handlers to use dedicated columns
   useEffect(() => {
     if (!draggingStepId) return;
     
@@ -469,32 +500,54 @@ function CursorFlowPreviewContent() {
       if (!draggingStepId || !dragStartPos) return;
       
       const step = steps.find(s => s.id === draggingStepId);
-      if (!step || !step.step_data?.position) return;
+      if (!step || step.cursor_position_x === undefined || step.cursor_position_y === undefined) {
+        console.error('Missing cursor position data for step:', draggingStepId);
+        return;
+      }
       
       const imageContainer = imageContainerRefs.current[draggingStepId];
       if (!imageContainer) return;
       
-      // Same calculation as in handleDrag
-      const rect = imageContainer.getBoundingClientRect();
-      const deltaX = e.clientX - dragStartPos.x;
-      const deltaY = e.clientY - dragStartPos.y;
+      // Get container dimensions
+      const containerRect = imageContainer.getBoundingClientRect();
       
-      const oldPos = step.step_data.position;
-      let newX = oldPos.x + deltaX;
-      let newY = oldPos.y + deltaY;
+      // Find the actual image element within the container (for debugging)
+      const imageElement = imageContainer.querySelector('img');
+      if (!imageElement) {
+        console.error('Image element not found in container');
+        return;
+      }
       
-      newX = Math.max(0, Math.min(newX, rect.width));
-      newY = Math.max(0, Math.min(newY, rect.height));
+      // Get viewport data from step data
+      const viewport = step.step_data.element?.viewport || {
+        width: 1920,
+        height: 1080,
+      };
       
+      // Use container dimensions for calculations instead of image dimensions
+      const deltaXPercent = ((e.clientX - dragStartPos.x) / containerRect.width) * 100;
+      const deltaYPercent = ((e.clientY - dragStartPos.y) / containerRect.height) * 100;
+      
+      // Calculate actual pixel movement based on original viewport
+      const deltaX = (deltaXPercent / 100) * viewport.width;
+      const deltaY = (deltaYPercent / 100) * viewport.height;
+      
+      // Calculate new cursor position using only dedicated columns
+      let newX = step.cursor_position_x + deltaX;
+      let newY = step.cursor_position_y + deltaY;
+      
+      // Confine to viewport bounds
+      newX = Math.max(0, Math.min(newX, viewport.width));
+      newY = Math.max(0, Math.min(newY, viewport.height));
+      
+      // Update step in local state with new position
       setSteps(prevSteps => 
         prevSteps.map(s => 
           s.id === draggingStepId 
             ? {
                 ...s,
-                step_data: {
-                  ...s.step_data,
-                  position: { x: newX, y: newY }
-                }
+                cursor_position_x: newX,
+                cursor_position_y: newY
               }
             : s
         )
@@ -521,6 +574,31 @@ function CursorFlowPreviewContent() {
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };
   }, [draggingStepId, dragStartPos, steps, setHasUnsavedChanges]);
+
+  // Replace the existing saveCursorPosition function with this one
+  const saveCursorPosition = async (stepId: string, position: { x: number, y: number }) => {
+    try {
+      // Use the dedicated columns instead of updating the step_data JSONB
+      const response = await fetch(`/api/cursorflow-steps/${stepId}/position`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          cursor_position_x: position.x,
+          cursor_position_y: position.y 
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        return { success: false, error };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating cursor position:', error);
+      return { success: false, error };
+    }
+  };
 
   if (isLoading) {
     return (
