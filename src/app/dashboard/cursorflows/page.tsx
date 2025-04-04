@@ -113,54 +113,61 @@ function CursorFlowsContent() {
 
   // Function to handle the JSON upload
   const handleUploadJson = async () => {
-    if (!selectedFile || !flowName.trim() || !currentOrgId || !session?.user?.id) {
-      alert('Please select a file and enter a name for the flow. Missing required information.');
+    // Updated validation: flowName is required only if flowId is not provided
+    if (!selectedFile || (!flowId.trim() && !flowName.trim()) || !currentOrgId || !session?.user?.id) {
+      alert('Please select a file. Provide either a Flow Name for a new flow or an existing Flow ID to update.');
       return;
     }
 
     setIsUploading(true);
     try {
+      // Pass flowId as existingFlowId. Pass flowName only if flowId is empty.
       const result = await processJsonForCursorFlow(
         selectedFile,
-        flowName,
+        flowId.trim() ? "" : flowName, // Pass empty string if updating, backend will ignore it
         currentOrgId,
-        session.user.id
+        session.user.id,
+        flowId.trim() ? flowId.trim() : undefined // Pass flowId if it exists
       );
 
       if (!result.success) {
         console.error('Error processing cursor flow:', result.error);
-        alert(flowId ? 'Failed to update cursor flow' : 'Failed to create cursor flow');
-        return;
+        // Use flowId to determine if it was an update or create attempt
+        alert(flowId.trim() ? 'Failed to update cursor flow' : 'Failed to create cursor flow');
+        return; // Keep return here
       }
 
       // Check text generation status
-      let message = flowId ? 'Flow updated' : 'Flow created';
-      
+      // Use flowId to determine if it was an update or create
+      let message = flowId.trim() ? 'Flow updated' : 'Flow created';
+
       if (result.textGenerated) {
         message += ` successfully with ${result.textProcessedCount} steps automatically annotated!`;
       } else if (result.error) {
         console.warn('Partial success:', result.error);
-        message += ', but some steps may not have been processed correctly.';
+        // Make error message more specific based on update/create
+        message += `, but encountered an issue: ${result.error}`;
       } else {
         message += ' successfully!';
       }
-      
+
       alert(message);
 
       // Refresh the cursor flows list
       if (currentOrgId) {
         await loadCursorFlows(currentOrgId);
       }
-      
+
       // Close the dialog and reset state
       setIsUploadDialogOpen(false);
       setSelectedFile(null);
       setFlowName("");
-      setFlowId("");
-      
+      setFlowId(""); // Ensure flowId is also reset
+
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to ' + (flowId ? 'update' : 'upload') + ' and process JSON');
+      // Use flowId to determine if it was an update or create attempt
+      alert('Failed to ' + (flowId.trim() ? 'update' : 'upload') + ' and process JSON');
     } finally {
       setIsUploading(false);
     }
@@ -463,11 +470,12 @@ function CursorFlowsContent() {
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleUploadJson} 
-              disabled={isUploading || !selectedFile || !flowName.trim()}
+            <Button
+              onClick={handleUploadJson}
+              // Disable button if no file is selected OR if neither flowName nor flowId is provided
+              disabled={isUploading || !selectedFile || (!flowName.trim() && !flowId.trim())}
             >
-              {isUploading ? "Uploading..." : flowId ? "Update Flow" : "Create Flow"}
+              {isUploading ? "Processing..." : flowId.trim() ? "Update Flow" : "Create Flow"}
             </Button>
           </div>
         </div>
