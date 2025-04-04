@@ -9,6 +9,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
+    let isMounted = true; // For cleanup
+
     const checkAuth = async () => {
       // If still loading, don't do anything yet
       if (isLoading) {
@@ -17,7 +19,7 @@ export default function DashboardPage() {
       
       // No session after loading completed - redirect to login
       if (!session) {
-        router.push('/auth/login');
+        if (isMounted) router.replace('/auth/login');
         return;
       }
       
@@ -25,7 +27,7 @@ export default function DashboardPage() {
       
       // If super admin, redirect to org selection
       if (session.user?.is_super_admin) {
-        router.push('/dashboard/organizations');
+        if (isMounted) router.replace('/dashboard/organizations');
         return;
       }
       
@@ -34,25 +36,40 @@ export default function DashboardPage() {
       
       if (memberships.length > 0) {
         // User has at least one organization
-        if (memberships.length === 1) {
-          // Single organization - should already be selected in context
-          router.push('/dashboard/cursorflows');
-        } else {
-          // Multiple organizations - this should be rare for regular users
-          router.push('/dashboard/cursorflows');
-        }
+        // Using replace instead of push to avoid browser history stack issues
+        if (isMounted) router.replace('/dashboard/cursorflows');
       } else {
         // No organizations found
-        router.push('/auth/login?error=no_organization');
+        if (isMounted) router.replace('/auth/login?error=no_organization');
       }
     };
     
+    // Start the check
     checkAuth();
+    
+    return () => {
+      isMounted = false; // Cleanup to prevent state updates after unmount
+    };
   }, [session, isLoading, router]);
 
+  // Show a more informative loading state
   return (
-    <div className="flex h-screen flex-col items-center justify-center">
-      <div>Loading Dashboard...</div>
+    <div className="flex h-screen flex-col items-center justify-center bg-gray-50">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+        <div className="text-center">
+          <h2 className="mb-6 text-xl font-bold text-gray-800">Dashboard</h2>
+          <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-full animate-pulse rounded-full bg-brand-600"></div>
+          </div>
+          <p className="mb-1 text-sm text-gray-700">
+            {isLoading 
+              ? "Loading your session..." 
+              : session 
+                ? "Session loaded, redirecting..." 
+                : "No session found, redirecting to login..."}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

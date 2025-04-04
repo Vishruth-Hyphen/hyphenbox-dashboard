@@ -4,10 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Log initialization for debugging
-console.log('[SUPABASE] Initializing Supabase client');
+// Extract the project reference from the URL (needed for cookie name)
+const projectRef = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || '';
+
+// Log initialization for debugging only if credentials are missing
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('[SUPABASE] Missing credentials: URL or ANON_KEY is empty');
+  console.error('[AUTH] Supabase: Missing credentials - URL or ANON_KEY is empty');
 }
 
 // Create the client with more robust configuration
@@ -15,14 +17,39 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true, // important for handling redirect in Next.js
+    detectSessionInUrl: true,
+    storageKey: `sb-${projectRef}-auth-token`,
+    storage: {
+      getItem: (key) => {
+        if (typeof window !== 'undefined') {
+          return localStorage.getItem(key);
+        }
+        return null;
+      },
+      setItem: (key, value) => {
+        if (typeof window !== 'undefined') {
+          // Still store in localStorage for client-side code
+          localStorage.setItem(key, value);
+          
+          // Set a proper cookie that will be visible to the server
+          // Use key attributes to ensure cookie is sent with requests
+          document.cookie = `${key}=${value}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`;
+        }
+      },
+      removeItem: (key) => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(key);
+          // Properly expire the cookie by setting max-age=0
+          document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax`;
+        }
+      }
+    }
   },
   global: {
     // More robust error handling with a proper timeout
     fetch: (...args) => {
-      console.log('[SUPABASE] Making fetch request');
       return fetch(...args).catch(err => {
-        console.error('[SUPABASE] Fetch error:', err);
+        console.error('[AUTH] Supabase fetch error:', err);
         throw err;
       });
     }

@@ -1,167 +1,86 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-// Same list as in AuthContext - keep these in sync
-const SUPER_ADMIN_EMAILS = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com']; // Add your cofounder's email if needed
-
-// Component that uses searchParams
+// Minimal Callback Component
 function CallbackContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleCallback = async () => {
+    // Explicitly handle the session from the URL
+    const handleAuthCallback = async () => {
       try {
-        console.log(`[CALLBACK] Auth callback starting, retrieving session`);
-        
+        // First, confirm we have a session
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        
+        if (error) {
+          console.error("[AUTH] Error processing callback:", error.message);
+          return;
+        }
         
         if (!session) {
-          // No session, redirect to login
-          console.log(`[CALLBACK] No session found, redirecting to login`);
-          router.push('/auth/login');
-          return;
-        }
-        
-        // Get the email from the session
-        const userEmail = session.user.email || '';
-        const userId = session.user.id;
-        console.log(`[CALLBACK] Auth callback processing for email: ${userEmail}, user ID: ${userId}`);
-        
-        // 1. First priority: Check if this is a super admin
-        if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
-          console.log(`[CALLBACK] Super admin detected: ${userEmail}`);
-          router.push('/dashboard/organizations');
-          return;
-        }
-        
-        // 2. Check for pending invitations for this user's email
-        console.log(`[CALLBACK] Checking for pending invitations for email: ${userEmail}`);
-        const { data: pendingInvites, error: invitesError } = await supabase
-          .from('team_invitations')
-          .select('id, organization_id, status, created_at')
-          .eq('email', userEmail)
-          .eq('status', 'pending');
+          // The hash hasn't been processed yet, let's wait a moment
+          await new Promise(resolve => setTimeout(resolve, 500));
           
-        if (invitesError) {
-          console.error(`[CALLBACK] Error fetching invitations: ${invitesError.message}`);
-        }
-        
-        if (pendingInvites && pendingInvites.length > 0) {
-          console.log(`[CALLBACK] Found ${pendingInvites.length} pending invitations`);
-          
-          // Process each invitation by creating organization_members records
-          for (const invite of pendingInvites) {
-            console.log(`[CALLBACK] Processing invitation for organization: ${invite.organization_id}`);
-            
-            // Check if membership already exists
-            const { data: existingMembership } = await supabase
-              .from('organization_members')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('organization_id', invite.organization_id)
-              .maybeSingle();
-              
-            if (!existingMembership) {
-              // Create organization membership record
-              console.log(`[CALLBACK] Creating organization_members record for user: ${userId}, organization: ${invite.organization_id}`);
-              const { error: membershipError } = await supabase
-                .from('organization_members')
-                .insert({
-                  user_id: userId,
-                  organization_id: invite.organization_id,
-                  role: 'member'
-                });
-                
-              if (membershipError) {
-                console.error(`[CALLBACK] Error creating membership: ${membershipError.message}`);
-              }
-            } else {
-              console.log(`[CALLBACK] Membership already exists for this organization`);
-            }
-            
-            // Mark invitation as accepted
-            console.log(`[CALLBACK] Marking invitation ${invite.id} as accepted`);
-            await supabase
-              .from('team_invitations')
-              .update({ status: 'accepted' })
-              .eq('id', invite.id);
+          // Check again
+          const { data: { session: refreshedSession } } = await supabase.auth.getSession();
+          if (!refreshedSession) {
+            console.error("[AUTH] Session not established after callback");
+            router.push('/auth/login');
+            return;
           }
-          
-          // Get the organization we should redirect to (most recent invitation)
-          const mostRecentInvite = pendingInvites.sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          )[0];
-          
-          console.log(`[CALLBACK] Setting selected organization: ${mostRecentInvite.organization_id}`);
-          localStorage.setItem('selectedOrganizationId', mostRecentInvite.organization_id);
-          
-          // Redirect to dashboard
-          console.log(`[CALLBACK] Redirecting to dashboard with processed invitations`);
-          router.push('/dashboard/cursorflows');
-          return;
         }
         
-        // 3. Check if user has any organization memberships
-        console.log(`[CALLBACK] Checking for existing organization memberships`);
-        const { data: memberships } = await supabase
-          .from('organization_members')
-          .select('organization_id')
-          .eq('user_id', userId);
-          
-        if (memberships && memberships.length > 0) {
-          console.log(`[CALLBACK] Found ${memberships.length} organization memberships`);
-          
-          // If user has just one organization, set it as selected
-          if (memberships.length === 1) {
-            console.log(`[CALLBACK] Setting single organization as selected: ${memberships[0].organization_id}`);
-            localStorage.setItem('selectedOrganizationId', memberships[0].organization_id);
-          } 
-          // If user has multiple organizations, check if one is already selected
-          else if (memberships.length > 1) {
-            const selectedOrgId = localStorage.getItem('selectedOrganizationId');
-            if (!selectedOrgId || !memberships.some(m => m.organization_id === selectedOrgId)) {
-              // Set first org as selected if none is selected or selected org is not in memberships
-              console.log(`[CALLBACK] Setting first organization as selected: ${memberships[0].organization_id}`);
-              localStorage.setItem('selectedOrganizationId', memberships[0].organization_id);
-            }
-          }
-          
-          console.log(`[CALLBACK] Redirecting to dashboard with existing memberships`);
-          router.push('/dashboard/cursorflows');
-          return;
+        // Explicitly refresh the session to ensure tokens are saved to storage/cookies
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.error("[AUTH] Error refreshing session:", refreshError.message);
         }
-        
-        // 4. No organization association found
-        console.log('[CALLBACK] No organization found for user');
-        router.push('/auth/login?error=no_organization');
-      } catch (error) {
-        console.error('Error during auth callback:', error);
+
+        // Redirect to dashboard after ensuring session is saved
+        router.push('/dashboard');
+      } catch (err) {
+        console.error("[AUTH] Unexpected error in callback:", err);
         router.push('/auth/login');
       }
     };
 
-    handleCallback();
-  }, [router, searchParams]);
+    handleAuthCallback();
+  }, [router]);
 
-  return <div className="flex h-screen items-center justify-center">
-    <div className="text-center">
-      <h2 className="text-xl font-semibold mb-4">Processing your login...</h2>
-      <p className="text-gray-500">Please wait while we set up your workspace.</p>
-    </div>
-  </div>;
+  // Basic loading state
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+        <div className="text-center">
+          <h2 className="mb-6 text-2xl font-bold text-gray-800">Authentication</h2>
+          <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-200">
+             <div className="h-full animate-pulse rounded-full bg-brand-600"></div>
+           </div>
+          <p className="mb-2 text-lg font-medium text-gray-700">Finalizing login...</p>
+           <p className="text-sm text-gray-500">
+             Please wait, redirecting shortly...
+          </p>
+         </div>
+       </div>
+     </div>
+  );
 }
 
 // Main component with Suspense boundary
 export default function Callback() {
+  // Return Suspense wrapper with CallbackContent
   return (
-    <Suspense fallback={<div className="p-12 text-center">Processing authentication...</div>}>
-      <CallbackContent />
-    </Suspense>
+     React.createElement(React.Suspense, { fallback: 
+       React.createElement("div", { className: "flex min-h-screen items-center justify-center" }, 
+         React.createElement("div", { className: "text-center" }, 
+           React.createElement("p", { className: "text-xl" }, "Loading authentication...")
+         )
+       )
+     }, 
+       React.createElement(CallbackContent, null)
+     )
   );
 }
