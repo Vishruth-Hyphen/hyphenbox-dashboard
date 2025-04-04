@@ -61,6 +61,7 @@ export default function LoginPage() {
           <img
             className="h-12 flex-none object-cover"
             src="https://res.cloudinary.com/subframe/image/upload/v1742091466/uploads/5582/svy6lyqqwqice1toqymg.png"
+            alt="Hyphenbox Logo"
           />
         </div>
       </div>
@@ -105,7 +106,7 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-wrap items-start gap-2">
           <span className="text-body font-body text-subtext-color">
-            Don't have an account?
+            Don&apos;t have an account?
           </span>
           <LinkButton
             variant="brand"
