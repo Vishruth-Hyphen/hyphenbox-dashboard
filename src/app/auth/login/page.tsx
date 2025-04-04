@@ -14,38 +14,37 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    
+
     setLoading(true);
+    setMessage("");
     try {
-      // Check if user exists in the user_profiles table
-      const { data: existingUser, error: userError } = await supabase
+      const { data: existingUser } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('email', email)
         .maybeSingle();
-        
-      // Check for pending invitation
-      const { data: pendingInvite, error: inviteError } = await supabase
+
+      const { data: pendingInvite } = await supabase
         .from('team_invitations')
         .select('id')
         .eq('email', email)
         .eq('status', 'pending')
         .maybeSingle();
-      
-      if (existingUser || pendingInvite) {
-        // Valid user or has invitation, send magic link
+
+      const userExistsOrInvited = existingUser || pendingInvite;
+
+      if (userExistsOrInvited) {
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
-        
+
         if (error) throw error;
         setMessage("Check your email for the magic link!");
       } else {
-        // Not authorized
-        setMessage("This email is not authorized for login. Please contact your administrator.");
+        setMessage("This email is not authorized for login.");
       }
     } catch (error) {
       console.error("Error during login:", error);
@@ -91,13 +90,13 @@ export default function LoginPage() {
                 </TextField>
                 <Button 
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !email}
                 >
-                  {loading ? "Sending..." : "Login"}
+                  {loading ? "Sending..." : "Send Magic Link"}
                 </Button>
               </div>
               {message && (
-                <div className="text-sm font-medium text-green-600 w-full text-center">
+                <div className={`text-sm font-medium w-full text-center ${message.includes('Error') || message.includes('not authorized') ? 'text-red-600' : 'text-green-600'}`}>
                   {message}
                 </div>
               )}
@@ -106,7 +105,7 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-wrap items-start gap-2">
           <span className="text-body font-body text-subtext-color">
-            Don&#39;t have an account?
+            Don't have an account?
           </span>
           <LinkButton
             variant="brand"
