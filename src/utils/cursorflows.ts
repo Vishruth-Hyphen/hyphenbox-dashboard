@@ -112,7 +112,7 @@ export function getBadgeVariantForStatus(status: string): "error" | "success" | 
 /**
  * Process a JSON file for a cursor flow, creating or updating a flow
  * @param file - The JSON file to process
- * @param flowName - The name for the cursor flow
+ * @param flowName - The name for the cursor flow (used only if creating a new flow)
  * @param organizationId - The organization ID
  * @param userId - The user ID
  * @param existingFlowId - Optional ID of an existing flow to update
@@ -120,10 +120,10 @@ export function getBadgeVariantForStatus(status: string): "error" | "success" | 
  */
 export const processJsonForCursorFlow = async (
   file: File,
-  flowName: string,
+  flowName: string, // Name is now only relevant for new flows
   organizationId: string,
   userId: string,
-  existingFlowId?: string
+  existingFlowId?: string // Keep this parameter as is
 ): Promise<{
   success: boolean;
   flowData?: CursorFlow;
@@ -139,42 +139,52 @@ export const processJsonForCursorFlow = async (
     }
 
     let flowData: CursorFlow;
-    
+    let operationType: 'created' | 'updated' = 'created'; // Track operation type
+
     if (existingFlowId) {
-      // Update existing flow
+      operationType = 'updated';
+      // Update existing flow: Only update description, status, and updated_at.
+      // DO NOT update the name here. Preserve the original name.
       const { data, error: updateError } = await supabase
         .from('cursor_flows')
         .update({
-          name: flowName,
-          description: 'Updated via dashboard',
-          status: 'draft',
+          // name: flowName, // REMOVED: Do not update name when Flow ID is provided
+          description: 'Updated via dashboard JSON upload', // You might want a more specific description
+          status: 'draft', // Reset status to draft on update? Or keep existing? Let's reset to draft.
           updated_at: new Date().toISOString()
         })
         .eq('id', existingFlowId)
         .select()
         .single();
-      
+
       if (updateError || !data) {
-        return { success: false, error: updateError || 'Flow not found' };
+        console.error("Error updating flow:", updateError);
+        return { success: false, error: updateError || `Flow with ID ${existingFlowId} not found` };
       }
-      
+
       flowData = data;
-      
+
       // Delete existing steps for this flow
       const { error: deleteError } = await supabase
         .from('cursor_flow_steps')
         .delete()
         .eq('flow_id', existingFlowId);
-      
+
       if (deleteError) {
-        return { 
-          success: true, // Flow was updated
+        console.error("Error deleting old steps:", deleteError);
+        // Return success true because the flow was technically updated, but report the step deletion error
+        return {
+          success: true, // Flow metadata was updated
           flowData,
-          error: `Flow updated but failed to remove old steps: ${deleteError}` 
+          error: `Flow updated but failed to remove old steps: ${deleteError.message}`
         };
       }
     } else {
-      // Create new flow
+      // Create new flow only if existingFlowId is not provided
+      // Ensure flowName is provided for new flows (frontend validation handles this)
+      if (!flowName) {
+         return { success: false, error: 'Flow name is required for creating a new flow.' };
+      }
       const { data: newFlowData, error: flowError } = await createCursorFlow(
         flowName,
         'Uploaded via dashboard',
@@ -183,61 +193,68 @@ export const processJsonForCursorFlow = async (
       );
 
       if (flowError || !newFlowData) {
+        console.error("Error creating flow:", flowError);
         return { success: false, error: flowError };
       }
-      
+
       flowData = newFlowData;
     }
 
     // Parse the recording data into steps
     const { stepData, error: parseError } = parseRecordingToSteps(flowData.id, fileContent);
-    
+
     if (parseError) {
       console.error('Error parsing steps:', parseError);
-      return { 
-        success: true, 
+      return {
+        success: true, // Flow record exists (created or updated)
         flowData,
-        error: `Flow ${existingFlowId ? 'updated' : 'created'} but failed to parse steps: ${parseError}`
+        error: `Flow ${operationType} but failed to parse steps: ${parseError}`
       };
     }
 
     // Save the steps to the database
     if (stepData.length > 0) {
       const { success, errors } = await createSteps(stepData);
-      
+
       if (!success) {
-        return { 
-          success: true, // Flow was created/updated
+        const errorMessages = errors.map(e => e.message || JSON.stringify(e)).join(', ');
+        console.error('Error saving steps:', errorMessages);
+        return {
+          success: true, // Flow record exists
           flowData,
-          error: `Flow ${existingFlowId ? 'updated' : 'created'} but some steps failed to save: ${JSON.stringify(errors)}`
+          error: `Flow ${operationType} but some steps failed to save: ${errorMessages}`
         };
       }
     }
 
     // After successful step creation, trigger text generation
-    console.log('Triggering text generation for flow:', flowData.id);
+    console.log(`Triggering text generation for ${operationType} flow:`, flowData.id);
     const { success: textSuccess, processedCount, error: textError } = await generateCursorFlowText(flowData.id);
-    
+
     if (!textSuccess) {
-      console.warn('Failed to generate text for cursor flow steps:', textError);
-      // Return success for the overall flow creation, but indicate text generation failed
-      return { 
-        success: true, 
-        flowData, 
+      const errorMessage = textError?.message || JSON.stringify(textError) || 'Unknown text generation error';
+      console.warn('Failed to generate text for cursor flow steps:', errorMessage);
+      // Return success for the overall flow operation, but indicate text generation failed
+      return {
+        success: true,
+        flowData,
         textGenerated: false,
-        error: `Flow created successfully, but automatic text generation failed: ${textError}`
+        error: `Flow ${operationType} successfully, but automatic text generation failed: ${errorMessage}`
       };
     }
 
-    return { 
-      success: true, 
+    // Final success case
+    return {
+      success: true,
       flowData,
       textGenerated: true,
       textProcessedCount: processedCount
     };
   } catch (error) {
-    console.error('Error in processJsonForCursorFlow:', error);
-    return { success: false, error };
+    console.error(`Error in processJsonForCursorFlow during ${existingFlowId ? 'update' : 'create'}:`, error);
+    // Ensure error type consistency
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
   }
 };
 
