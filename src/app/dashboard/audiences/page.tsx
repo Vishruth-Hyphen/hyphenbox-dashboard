@@ -351,33 +351,14 @@ function Audiences() {
                   className="cursor-pointer hover:bg-neutral-50"
                 >
                   <Table.Cell>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <SubframeCore.Icon 
-                          name="FeatherUsers" 
-                          className="text-body font-body text-neutral-500"
-                        />
-                        <span className="whitespace-nowrap text-body-bold font-body-bold text-neutral-700">
-                          {audience.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center mt-1">
-                        <span className="text-xs text-gray-500 mr-2">ID: {audience.id}</span>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyToClipboard(audience.id);
-                          }}
-                          className="p-1 rounded hover:bg-gray-100"
-                          title="Copy ID to clipboard"
-                        >
-                          {copiedId === audience.id ? (
-                            <span className="text-xs text-green-600">✓ Copied</span>
-                          ) : (
-                            <SubframeCore.Icon name="FeatherClipboard" className="h-3 w-3 text-gray-500" />
-                          )}
-                        </button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <SubframeCore.Icon 
+                        name="FeatherUsers" 
+                        className="text-body font-body text-neutral-500"
+                      />
+                      <span className="whitespace-nowrap text-body-bold font-body-bold text-neutral-700">
+                        {audience.name}
+                      </span>
                     </div>
                   </Table.Cell>
                   <Table.Cell>

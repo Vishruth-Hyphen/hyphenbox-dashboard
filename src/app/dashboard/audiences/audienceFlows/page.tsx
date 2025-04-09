@@ -52,6 +52,9 @@ function AudienceFlowsContent() {
   const [selectedFlowsDisplay, setSelectedFlowsDisplay] = useState<{id: string, name: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Add state for copy feedback
+  const [isCopied, setIsCopied] = useState(false);
+
   // Load audience and its flows
   useEffect(() => {
     const loadData = async () => {
@@ -219,6 +222,15 @@ function AudienceFlowsContent() {
     }
   };
 
+  // Add copy handler
+  const handleCopyId = () => {
+    if (audience?.id) {
+      navigator.clipboard.writeText(audience.id);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
   return (
     <InviteTeamMembers>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
@@ -298,26 +310,30 @@ function AudienceFlowsContent() {
           </div>
         </div>
         
-        {/* Add audience ID display below the heading */}
+        {/* Improved audience ID display */}
         {audience && (
-          <div className="flex items-center -mt-6 mb-2">
-            <span className="text-sm text-gray-500 mr-2">ID: {audience.id}</span>
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText(audience.id);
-                // Show temporary "Copied!" tooltip
-                const tooltip = document.createElement('span');
-                tooltip.textContent = 'Copied!';
-                tooltip.className = 'absolute text-xs text-green-600 ml-6';
-                const button = document.activeElement;
-                button?.parentNode?.appendChild(tooltip);
-                setTimeout(() => tooltip.remove(), 2000);
-              }}
-              className="p-1 rounded hover:bg-gray-100"
-              title="Copy ID to clipboard"
-            >
-              <SubframeCore.Icon name="FeatherClipboard" className="h-3 w-3 text-gray-500" />
-            </button>
+          <div className="flex items-center gap-2 py-2 px-3 bg-gray-50 rounded-md w-fit">
+            <span className="text-sm text-gray-600">Audience ID:</span>
+            <code className="text-sm font-mono text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">
+              {audience.id}
+            </code>
+            <div className="relative">
+              <button 
+                onClick={handleCopyId}
+                className="p-1.5 rounded hover:bg-white transition-colors duration-150 ml-1"
+                title="Copy ID to clipboard"
+              >
+                <SubframeCore.Icon 
+                  name={isCopied ? "FeatherCheck" : "FeatherClipboard"} 
+                  className={`h-4 w-4 ${isCopied ? 'text-green-600' : 'text-gray-500'}`}
+                />
+              </button>
+              {isCopied && (
+                <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-green-600 bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100">
+                  Copied!
+                </span>
+              )}
+            </div>
           </div>
         )}
         
