@@ -93,7 +93,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading || !email}
                 >
-                  {loading ? "Sending..." : "Send Magic Link"}
+                  {loading ? "Sending..." : "Login"}
                 </Button>
               </div>
               {message && (
