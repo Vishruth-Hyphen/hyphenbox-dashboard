@@ -49,7 +49,7 @@ function CallbackContent() {
             .select('id, organization_id')
             .eq('email', session.user.email)
             .eq('status', 'pending')
-            .lt('expires_at', new Date().toISOString());
+            .gt('expires_at', new Date().toISOString());
           
           if (invitationError) {
             console.error("[AUTH] Error fetching invitations:", invitationError.message);
