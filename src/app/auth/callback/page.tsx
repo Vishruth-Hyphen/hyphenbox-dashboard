@@ -13,41 +13,57 @@ function CallbackContent() {
     const handleAuthCallback = async () => {
       try {
         // First, confirm we have a session
+        let currentSession = null;
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error("[AUTH] Error processing callback:", error.message);
+          router.push('/auth/login?error=session_error');
           return;
         }
         
         if (!session) {
           // The hash hasn't been processed yet, let's wait a moment
-          await new Promise(resolve => setTimeout(resolve, 500));
+          console.log("[AUTH] No session yet, waiting...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Check again
           const { data: { session: refreshedSession } } = await supabase.auth.getSession();
           if (!refreshedSession) {
             console.error("[AUTH] Session not established after callback");
-            router.push('/auth/login');
+            router.push('/auth/login?error=no_session');
             return;
           }
+          
+          // Use the refreshed session
+          currentSession = refreshedSession;
+        } else {
+          // Use the original session
+          currentSession = session;
         }
         
+        // Add explicit session stabilization delay
+        console.log("[AUTH] Session found, stabilizing...");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
         // Explicitly refresh the session to ensure tokens are saved to storage/cookies
+        console.log("[AUTH] Refreshing session tokens...");
         const { error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError) {
           console.error("[AUTH] Error refreshing session:", refreshError.message);
         }
 
         // ADDED: Check for pending invitations
-        if (session?.user?.email) {
-          console.log("[AUTH] Checking for pending invitations for:", session.user.email);
+        let membershipCreated = false;
+        
+        if (currentSession?.user?.email) {
+          console.log("[AUTH] Checking for pending invitations for:", currentSession.user.email);
           
           // Find pending invitations for this email
           const { data: invitations, error: invitationError } = await supabase
             .from('team_invitations')
             .select('id, organization_id')
-            .eq('email', session.user.email)
+            .eq('email', currentSession.user.email)
             .eq('status', 'pending')
             .gt('expires_at', new Date().toISOString());
           
@@ -63,13 +79,21 @@ function CallbackContent() {
                 .from('organization_members')
                 .insert({
                   organization_id: invite.organization_id,
-                  user_id: session.user.id,
+                  user_id: currentSession.user.id,
                   role: 'member' // Default role
                 });
               
               if (membershipError) {
                 console.error("[AUTH] Error creating membership:", membershipError.message);
+                
+                // Check if error is due to duplicate - still count as success
+                if (membershipError.code === '23505') { // Postgres unique violation
+                  console.log("[AUTH] User already has membership for this organization");
+                  membershipCreated = true;
+                }
               } else {
+                membershipCreated = true;
+                
                 // Update invitation status
                 await supabase
                   .from('team_invitations')
@@ -80,13 +104,42 @@ function CallbackContent() {
               }
             }
           }
+          
+          // If no invitations were found, check if user already has memberships
+          if (!invitations || invitations.length === 0) {
+            console.log("[AUTH] No pending invitations, checking existing memberships");
+            
+            const { data: existingMemberships } = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', currentSession.user.id);
+              
+            if (existingMemberships && existingMemberships.length > 0) {
+              console.log("[AUTH] User already has organization memberships");
+              membershipCreated = true;
+            }
+          }
         }
-
-        // Redirect to dashboard after ensuring session is saved
-        router.push('/dashboard');
+        
+        // CRITICAL: Only redirect to dashboard if we confirmed membership exists
+        if (membershipCreated) {
+          console.log("[AUTH] Organization membership confirmed, redirecting to dashboard");
+          router.push('/dashboard');
+        } else {
+          // Special case for super admins
+          const isSuperAdmin = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com'].includes(currentSession?.user?.email || '');
+          
+          if (isSuperAdmin) {
+            console.log("[AUTH] Super admin detected, redirecting to organizations");
+            router.push('/dashboard/organizations');
+          } else {
+            console.log("[AUTH] No organization access, redirecting to login");
+            router.push('/auth/login?error=no_organization_access');
+          }
+        }
       } catch (err) {
         console.error("[AUTH] Unexpected error in callback:", err);
-        router.push('/auth/login');
+        router.push('/auth/login?error=unexpected_error');
       }
     };
 
