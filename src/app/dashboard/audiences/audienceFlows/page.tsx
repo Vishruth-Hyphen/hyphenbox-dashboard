@@ -20,7 +20,9 @@ import {
   type AudienceData
 } from "@/utils/audiences";
 import { 
-  fetchUnassignedCursorFlows
+  fetchUnassignedCursorFlows,
+  getFlowsNotInAudience,
+  getAudienceNamesForFlow
 } from "@/utils/cursorflows";
 import { type CursorFlow } from "@/lib/supabase";
 import { getBadgeVariantForStatus } from "@/utils/cursorflows";
@@ -54,6 +56,9 @@ function AudienceFlowsContent() {
 
   // Add state for copy feedback
   const [isCopied, setIsCopied] = useState(false);
+
+  // Add this state for storing flow audience info
+  const [flowAudiences, setFlowAudiences] = useState<Record<string, string[]>>({});
 
   // Load audience and its flows
   useEffect(() => {
@@ -93,7 +98,20 @@ function AudienceFlowsContent() {
           throw new Error("Failed to load cursor flows");
         }
         
-        setFlows(flowsData || []);
+        // Ensure flowsData is flattened properly
+        const flattenedFlows = Array.isArray(flowsData) ? flowsData.flat() : [];
+        setFlows(flattenedFlows || []);
+        
+        // After loading flows, also load audience info for each
+        if (flowsData) {
+          const flattenedFlows = Array.isArray(flowsData) ? flowsData.flat() : [];
+          setFlows(flattenedFlows || []);
+          
+          // Load audience info for each flow
+          for (const flow of flattenedFlows) {
+            loadFlowAudiences(flow.id);
+          }
+        }
       } catch (err) {
         console.error("Error loading audience data:", err);
         setError(err instanceof Error ? err.message : "An error occurred");
@@ -107,13 +125,30 @@ function AudienceFlowsContent() {
     }
   }, [audienceId, currentOrgId]);
 
+  // Add a function to load audience info for a flow
+  const loadFlowAudiences = async (flowId: string) => {
+    try {
+      const audienceNames = await getAudienceNamesForFlow(flowId);
+      setFlowAudiences(prev => ({
+        ...prev,
+        [flowId]: audienceNames
+      }));
+    } catch (err) {
+      console.error("Error loading flow audiences", err);
+    }
+  };
+
   // Handle removing a flow from the audience
   const handleRemoveFlow = async (flowId: string) => {
     setRemovingFlowId(flowId);
     setError(null);
     
     try {
-      const { success, error: removeError } = await removeFlowFromAudience(flowId);
+      if (!audienceId) {
+        throw new Error("No audience ID provided");
+      }
+      
+      const { success, error: removeError } = await removeFlowFromAudience(flowId, audienceId);
       
       if (!success) {
         throw new Error(removeError || "Failed to remove flow from audience");
@@ -142,8 +177,8 @@ function AudienceFlowsContent() {
     setIsAddFlowsDialogOpen(true);
     
     try {
-      // Load unassigned flows with organization filtering
-      const { data, error: fetchError } = await fetchUnassignedCursorFlows(currentOrgId);
+      // Load flows not assigned to this audience
+      const { data, error: fetchError } = await getFlowsNotInAudience(audienceId, currentOrgId);
       
       if (fetchError) {
         throw new Error("Failed to load available flows");
@@ -206,7 +241,9 @@ function AudienceFlowsContent() {
         throw new Error("Flows were added but failed to refresh the list");
       }
       
-      setFlows(newFlowsData || []);
+      // Ensure newFlowsData is flattened properly
+      const flattenedFlows = Array.isArray(newFlowsData) ? newFlowsData.flat() : [];
+      setFlows(flattenedFlows || []);
       setSuccessMessage(`${selectedFlowIds.length} ${selectedFlowIds.length === 1 ? 'flow' : 'flows'} successfully added to audience`);
       
       // Clear success message after 3 seconds
@@ -295,11 +332,6 @@ function AudienceFlowsContent() {
             {audience?.name || "Loading..."}
           </span>
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/audiences">
-              <Button variant="neutral-tertiary">
-                Back to Audiences
-              </Button>
-            </Link>
             <Button
               icon="FeatherPlus"
               onClick={handleOpenAddFlowsDialog}
@@ -374,7 +406,25 @@ function AudienceFlowsContent() {
                     key={flow.id}
                     icon="FeatherMousePointer"
                     title={flow.name}
-                    subtitle={flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
+                    subtitle={
+                      <>
+                        <div className="flex items-center gap-1">
+                          <Badge variant={getBadgeVariantForStatus(flow.status)}>
+                            {flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
+                          </Badge>
+                        </div>
+                        {flowAudiences[flow.id] && flowAudiences[flow.id].length > 1 && (
+                          <div className="mt-1 text-xs text-gray-500">
+                            <span>Also in: </span>
+                            <span className="font-medium">
+                              {flowAudiences[flow.id]
+                                .filter(name => name !== audience?.name)
+                                .join(', ')}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    }
                     metadata=""
                   >
                     <Badge variant={getBadgeVariantForStatus(flow.status)}>
@@ -425,7 +475,7 @@ function AudienceFlowsContent() {
               Add Flows to Audience
             </span>
             <span className="text-body font-body text-subtext-color">
-              Select flows to add to {audience?.name || "this audience"}
+              Select flows to add to {audience?.name || "this audience"}. Flows can belong to multiple audiences.
             </span>
           </div>
           

@@ -56,25 +56,41 @@ export const fetchAudiences = async (
  * @param audienceId - The ID of the audience
  * @returns Promise with the cursor flows
  */
-export const fetchAudienceCursorFlows = async (
-  audienceId: string
-): Promise<{
-  data: CursorFlow[] | null;
-  error: any;
-}> => {
+export async function fetchAudienceCursorFlows(audienceId: string) {
   try {
     const { data, error } = await supabase
-      .from('cursor_flows')
-      .select('*')
-      .eq('audience_id', audienceId)
-      .order('created_at', { ascending: false });
+      .from('audience_flows')
+      .select(`
+        flow_id,
+        cursor_flows (
+          id,
+          name,
+          description,
+          status,
+          organization_id,
+          created_at,
+          updated_at,
+          created_by,
+          published_at,
+          published_by
+        )
+      `)
+      .eq('audience_id', audienceId);
     
-    return { data, error };
-  } catch (error) {
-    console.error('Error in fetchAudienceCursorFlows:', error);
-    return { data: null, error };
+    if (error) {
+      console.error('Error fetching audience cursor flows:', error);
+      return { data: null, error: error.message };
+    }
+    
+    // Transform the data to extract cursor_flows from the nested structure
+    const flowsData = data.map(item => item.cursor_flows);
+    
+    return { data: flowsData, error: null };
+  } catch (err) {
+    console.error('Exception fetching audience cursor flows:', err);
+    return { data: null, error: 'Failed to fetch audience cursor flows' };
   }
-};
+}
 
 /**
  * Fetch cursor flows count for each audience
@@ -89,8 +105,8 @@ export const fetchAudienceFlowCounts = async (
 }> => {
   try {
     const { data, error } = await supabase
-      .from('cursor_flows')
-      .select('audience_id, id')
+      .from('audience_flows')
+      .select('audience_id')
       .in('audience_id', audienceIds);
     
     if (error) {
@@ -214,72 +230,78 @@ export const associateFlowsWithAudience = async (
 export const createAudienceWithFlows = async (
   audienceData: {
     name: string;
-    description?: string;
+    description: string;
     organization_id: string;
     created_by: string;
   },
   flowIds: string[]
 ): Promise<{
   success: boolean;
-  audienceId: string | null;
+  audienceId?: string;
   error?: any;
 }> => {
   try {
-    // Create the audience with properly formatted user ID
-    const { id: audienceId, error: createError } = await createAudience(audienceData);
+    // Create the audience
+    const { data: audience, error: audienceError } = await supabase
+      .from('audiences')
+      .insert([audienceData])
+      .select()
+      .single();
     
-    if (createError || !audienceId) {
-      return { success: false, audienceId: null, error: createError };
+    if (audienceError) {
+      console.error('Error creating audience:', audienceError);
+      return { success: false, error: audienceError };
     }
     
-    // Associate flows with the audience
+    // If there are flows to add, add them using the audience_flows junction table
     if (flowIds.length > 0) {
-      const { success, error: associateError } = await associateFlowsWithAudience(audienceId, flowIds);
+      // Create array of objects for the junction table
+      const flowEntries = flowIds.map(flowId => ({
+        audience_id: audience.id,
+        flow_id: flowId
+      }));
       
-      if (!success) {
-        return { success: false, audienceId, error: associateError };
+      const { error: flowsError } = await supabase
+        .from('audience_flows')
+        .insert(flowEntries);
+      
+      if (flowsError) {
+        console.error('Error associating flows with audience:', flowsError);
+        return { success: false, audienceId: audience.id, error: flowsError };
       }
     }
     
-    return { success: true, audienceId };
+    return { success: true, audienceId: audience.id };
   } catch (error) {
     console.error('Error in createAudienceWithFlows:', error);
-    return { success: false, audienceId: null, error };
+    return { success: false, error };
   }
 };
 
 /**
  * Remove a cursor flow from an audience
  * @param flowId - The ID of the cursor flow to remove
+ * @param audienceId - The ID of the audience to remove the flow from
  * @returns Promise with success status
  */
-export const removeFlowFromAudience = async (
-  flowId: string
-): Promise<{
-  success: boolean;
-  error?: any;
-}> => {
+export async function removeFlowFromAudience(flowId: string, audienceId: string) {
   try {
-    console.log('Removing flow from audience:', {
-      flowId
-    });
-    
     const { error } = await supabase
-      .from('cursor_flows')
-      .update({ audience_id: null })
-      .eq('id', flowId);
-
+      .from('audience_flows')
+      .delete()
+      .match({ flow_id: flowId, audience_id: audienceId });
+    
     if (error) {
       console.error('Error removing flow from audience:', error);
-      return { success: false, error };
+      return { success: false, error: error.message };
     }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error in removeFlowFromAudience:', error);
-    return { success: false, error };
+    
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Exception removing flow from audience:', err);
+    return { success: false, error: 'Failed to remove flow from audience' };
   }
-};
+}
 
 /**
  * Add multiple cursor flows to an existing audience
@@ -287,37 +309,26 @@ export const removeFlowFromAudience = async (
  * @param flowIds - Array of cursor flow IDs to add to the audience
  * @returns Promise with success status
  */
-export const addFlowsToAudience = async (
-  audienceId: string,
-  flowIds: string[]
-): Promise<{
-  success: boolean;
-  error?: any;
-}> => {
+export async function addFlowsToAudience(audienceId: string, flowIds: string[]) {
   try {
-    if (!flowIds.length) {
-      return { success: true }; // No flows to add
-    }
+    // Create an array of objects to insert
+    const rowsToInsert = flowIds.map(flowId => ({
+      audience_id: audienceId,
+      flow_id: flowId
+    }));
     
-    console.log('Adding flows to audience:', {
-      audienceId,
-      flowIds
-    });
-    
-    // Update all the flows to have the audience_id
     const { error } = await supabase
-      .from('cursor_flows')
-      .update({ audience_id: audienceId })
-      .in('id', flowIds);
-
+      .from('audience_flows')
+      .insert(rowsToInsert);
+    
     if (error) {
       console.error('Error adding flows to audience:', error);
-      return { success: false, error };
+      return { success: false, error: error.message };
     }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error in addFlowsToAudience:', error);
-    return { success: false, error };
+    
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Exception adding flows to audience:', err);
+    return { success: false, error: 'Failed to add flows to audience' };
   }
-}; 
+} 

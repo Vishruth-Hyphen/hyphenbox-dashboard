@@ -18,10 +18,14 @@ import {
   fetchAudiences,
   fetchAudienceFlowCounts,
   createAudienceWithFlows,
+  removeFlowFromAudience,
+  addFlowsToAudience,
   type AudienceData
 } from "@/utils/audiences";
 import { 
   fetchCursorFlows,
+  fetchCursorFlowsWithAudiences,
+  getAudienceNamesForFlow,
   fetchUnassignedCursorFlows
 } from "@/utils/cursorflows";
 import { type CursorFlow } from "@/lib/supabase";
@@ -55,14 +59,22 @@ function Audiences() {
   // Add this state for copied feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Add a state for flows with audience info
+  const [flowsWithAudiences, setFlowsWithAudiences] = useState<any[]>([]);
+  // Add state for showing the flow management dialog
+  const [isManageFlowsDialogOpen, setIsManageFlowsDialogOpen] = useState(false);
+  const [selectedAudience, setSelectedAudience] = useState<AudienceData | null>(null);
+
   // Initialize organization context and load data
   useEffect(() => {
     if (session?.user && currentOrgId) {
       loadData(currentOrgId);
+      loadFlowsWithAudiences(); // Load flow distribution data
     } else if (session?.user) {
       const orgId = getOrganizationId();
       if (orgId) {
         loadData(orgId);
+        loadFlowsWithAudiences(); // Load flow distribution data
       } else {
         // Make sure loading state is cleared even if no org ID is found
         setIsLoading(false);
@@ -179,7 +191,7 @@ function Audiences() {
       const { success, audienceId, error: createError } = await createAudienceWithFlows(
         {
           name: audienceName,
-          description: audienceDescription,
+          description: audienceDescription || "", // Provide empty string as default
           organization_id: currentOrgId,
           created_by: userId
         },
@@ -228,7 +240,7 @@ function Audiences() {
   const handleOpenCreateDialog = async () => {
     setIsCreateDialogOpen(true);
     
-    // When opening the dialog, fetch the latest unassigned flows
+    // When opening the dialog, fetch all available flows
     try {
       setError(null);
       
@@ -237,17 +249,18 @@ function Audiences() {
         return;
       }
       
-      const { data: unassignedFlowsData, error: unassignedFlowsError } = await fetchUnassignedCursorFlows(currentOrgId);
+      // Get all flows for this organization, not just unassigned ones
+      const { data: allFlowsData, error: allFlowsError } = await fetchCursorFlows(currentOrgId);
       
-      if (unassignedFlowsError) {
-        console.error('Error fetching unassigned cursor flows:', unassignedFlowsError);
+      if (allFlowsError) {
+        console.error('Error fetching cursor flows:', allFlowsError);
         setError('Failed to load available cursor flows');
         return;
       }
       
-      setCursorFlows(unassignedFlowsData || []);
+      setCursorFlows(allFlowsData || []);
     } catch (err) {
-      console.error('Error loading unassigned flows:', err);
+      console.error('Error loading flows:', err);
       setError('Failed to load available cursor flows');
     }
   };
@@ -260,6 +273,29 @@ function Audiences() {
         setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
       })
       .catch(err => console.error('Failed to copy: ', err));
+  };
+
+  // Add a function to load flows with their audience distributions
+  const loadFlowsWithAudiences = async () => {
+    if (!currentOrgId) return;
+    
+    try {
+      const { data, error } = await fetchCursorFlowsWithAudiences(currentOrgId);
+      if (error) {
+        console.error('Error loading flows with audiences:', error);
+        return;
+      }
+      
+      setFlowsWithAudiences(data || []);
+    } catch (err) {
+      console.error('Error in loadFlowsWithAudiences:', err);
+    }
+  };
+
+  // Add a function to handle opening the manage flows dialog
+  const handleManageFlows = (audience: AudienceData) => {
+    setSelectedAudience(audience);
+    setIsManageFlowsDialogOpen(true);
   };
 
   return (
@@ -340,6 +376,7 @@ function Audiences() {
                   <Table.HeaderCell>AUDIENCE NAME</Table.HeaderCell>
                   <Table.HeaderCell>CURSOR FLOWS</Table.HeaderCell>
                   <Table.HeaderCell>CREATED</Table.HeaderCell>
+                  <Table.HeaderCell className="text-center">COPY ID</Table.HeaderCell>
                   <Table.HeaderCell />
                 </Table.HeaderRow>
               }
@@ -370,6 +407,30 @@ function Audiences() {
                     <span className="whitespace-nowrap text-body font-body text-neutral-500">
                       {formatRelativeTime(audience.created_at)}
                     </span>
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <div className="relative inline-block">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent row click
+                          navigator.clipboard.writeText(audience.id);
+                          setCopiedId(audience.id);
+                          setTimeout(() => setCopiedId(null), 2000);
+                        }}
+                        className="p-1.5 rounded hover:bg-white transition-colors duration-150 mx-auto"
+                        title="Copy audience ID"
+                      >
+                        <SubframeCore.Icon 
+                          name={copiedId === audience.id ? "FeatherCheck" : "FeatherClipboard"} 
+                          className={`h-4 w-4 ${copiedId === audience.id ? 'text-green-600' : 'text-gray-500'}`}
+                        />
+                        {copiedId === audience.id && (
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-green-600 bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100 whitespace-nowrap">
+                            Copied!
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex grow shrink-0 basis-0 items-center justify-end">
@@ -405,6 +466,15 @@ function Audiences() {
                               </DropdownMenu.DropdownItem>
                               <DropdownMenu.DropdownItem icon="FeatherTrash">
                                 Delete
+                              </DropdownMenu.DropdownItem>
+                              <DropdownMenu.DropdownItem 
+                                icon="FeatherLayers"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleManageFlows(audience);
+                                }}
+                              >
+                                Manage Flows
                               </DropdownMenu.DropdownItem>
                             </DropdownMenu>
                           </SubframeCore.DropdownMenu.Content>
@@ -478,8 +548,8 @@ function Audiences() {
               <Select
                 className="h-auto w-full flex-none"
                 label="Cursor Flows"
-                placeholder={cursorFlows.length > 0 ? "Select existing cursor flows" : "No unassigned flows available"}
-                helpText="Only flows that aren't already assigned to an audience are shown here"
+                placeholder={cursorFlows.length > 0 ? "Select flows to add" : "No flows available"}
+                helpText="Select flows to include in this audience. Flows can belong to multiple audiences."
                 value={undefined}
                 onValueChange={handleSelectCursorFlow}
               >
@@ -490,7 +560,7 @@ function Audiences() {
                     </Select.Item>
                   ))
                 ) : (
-                  <Select.Item value="no-flows" disabled>No unassigned flows available</Select.Item>
+                  <Select.Item value="no-flows" disabled>No flows available</Select.Item>
                 )}
               </Select>
               
@@ -542,6 +612,64 @@ function Audiences() {
           </div>
         </div>
       </DialogLayout>
+
+      {/* Flow Management Dialog */}
+      {selectedAudience && (
+        <DialogLayout open={isManageFlowsDialogOpen} onOpenChange={setIsManageFlowsDialogOpen}>
+          <div className="flex h-full w-full flex-col items-start gap-6 px-6 py-6">
+            <div className="flex w-full flex-col items-start gap-1">
+              <span className="text-heading-3 font-heading-3 text-default-font">
+                Manage Flows for {selectedAudience.name}
+              </span>
+              <span className="text-body font-body text-subtext-color">
+                Add or remove flows from this audience. Flows can belong to multiple audiences simultaneously.
+              </span>
+            </div>
+            
+            {error && (
+              <Alert
+                title="Error"
+                description={error}
+                variant="error"
+                actions={
+                  <IconButton
+                    icon="FeatherX"
+                    onClick={() => setError(null)}
+                  />
+                }
+              />
+            )}
+            
+            <div className="flex w-full flex-col gap-4">
+              <h3 className="font-medium">Organization Flows</h3>
+              <div className="max-h-96 overflow-y-auto border rounded-md">
+                {flowsWithAudiences.map(flow => (
+                  <div key={flow.id} className="border-b p-3 flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">{flow.name}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {flow.audienceNames.length > 0 && (
+                          <>
+                            <span className="text-xs text-gray-500">In audiences:</span>
+                            {flow.audienceNames.map((name: string, index: number) => (
+                              <Badge 
+                                key={`${flow.id}-${index}`}
+                                className="text-xs"
+                              >
+                                {name}
+                              </Badge>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogLayout>
+      )}
     </InviteTeamMembers>
   );
 }

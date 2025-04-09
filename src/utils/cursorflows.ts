@@ -472,70 +472,157 @@ export const rollbackCursorFlow = async (
 };
 
 /**
- * Fetch cursor flows that don't have an audience assigned
- * @param organizationId - Optional organization ID to filter by
+ * Fetch cursor flows that don't have any audience assigned
+ * @param organizationId - Organization ID to filter by
  * @returns Promise with unassigned cursor flows
  */
-export const fetchUnassignedCursorFlows = async (
-  organizationId?: string
-): Promise<{
-  data: CursorFlow[] | null;
-  error: any;
-}> => {
+export async function fetchUnassignedCursorFlows(organizationId: string) {
   try {
-    let query = supabase
+    // First, get all flow IDs that are assigned to any audience
+    const { data: assignedFlows, error: flowsError } = await supabase
+      .from('audience_flows')
+      .select('flow_id');
+    
+    if (flowsError) {
+      console.error('Error fetching assigned flows:', flowsError);
+      return { data: null, error: flowsError.message };
+    }
+    
+    // Extract the assigned flow IDs
+    const assignedFlowIds = assignedFlows.map(item => item.flow_id);
+    
+    // If no flows are assigned yet, just return all flows for the organization
+    if (assignedFlowIds.length === 0) {
+      const { data, error } = await supabase
+        .from('cursor_flows')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching cursor flows:', error);
+        return { data: null, error: error.message };
+      }
+      
+      return { data, error: null };
+    }
+    
+    // Otherwise, fetch flows that aren't in the list of assigned flows
+    const { data, error } = await supabase
       .from('cursor_flows')
       .select('*')
-      .is('audience_id', null); // Only get flows without an audience
-
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
+      .eq('organization_id', organizationId)
+      .not('id', 'in', `(${assignedFlowIds.join(',')})`)
+      .order('created_at', { ascending: false });
     
     if (error) {
       console.error('Error fetching unassigned cursor flows:', error);
-      return { data: null, error };
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    console.error('Error in fetchUnassignedCursorFlows:', error);
-    return { data: null, error };
-  }
-};
-
-/**
- * Get audience name for a cursor flow
- * @param flow - The cursor flow object
- * @returns Promise with the audience name
- */
-export const getAudienceNameForFlow = async (
-  flow: CursorFlow
-): Promise<string> => {
-  try {
-    // If flow doesn't have an audience_id, return a placeholder
-    if (!flow.audience_id) {
-      return "No audience";
+      return { data: null, error: error.message };
     }
     
-    // Query the audiences table to get the audience name
+    return { data, error: null };
+  } catch (err) {
+    console.error('Exception fetching unassigned cursor flows:', err);
+    return { data: null, error: 'Failed to fetch unassigned cursor flows' };
+  }
+}
+
+// New function to check if a flow is assigned to a specific audience
+export async function isFlowAssignedToAudience(flowId: string, audienceId: string) {
+  try {
     const { data, error } = await supabase
-      .from('audiences')
-      .select('name')
-      .eq('id', flow.audience_id)
+      .from('audience_flows')
+      .select('*')
+      .eq('flow_id', flowId)
+      .eq('audience_id', audienceId)
       .single();
     
-    if (error || !data) {
-      console.error('Error fetching audience name:', error);
-      return "Unknown audience";
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+      console.error('Error checking if flow is assigned to audience:', error);
+      return { isAssigned: false, error: error.message };
     }
     
-    return data.name;
+    return { isAssigned: !!data, error: null };
+  } catch (err) {
+    console.error('Exception checking if flow is assigned to audience:', err);
+    return { isAssigned: false, error: 'Failed to check if flow is assigned to audience' };
+  }
+}
+
+// New function to get flows not assigned to a specific audience
+export async function getFlowsNotInAudience(audienceId: string, organizationId: string) {
+  try {
+    // Get all flow IDs that are already in this audience
+    const { data: existingFlows, error: existingError } = await supabase
+      .from('audience_flows')
+      .select('flow_id')
+      .eq('audience_id', audienceId);
+    
+    if (existingError) {
+      return { data: null, error: existingError.message };
+    }
+    
+    // Extract the flow IDs
+    const existingFlowIds = existingFlows.map(f => f.flow_id);
+    
+    // If no flows are assigned yet, return all organization flows
+    if (existingFlowIds.length === 0) {
+      return fetchCursorFlows(organizationId);
+    }
+    
+    // Otherwise, get all flows for the organization that aren't in the existing flows
+    const { data: availableFlows, error: availableError } = await supabase
+      .from('cursor_flows')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .not('id', 'in', `(${existingFlowIds.join(',')})`)
+      .order('created_at', { ascending: false });
+    
+    if (availableError) {
+      return { data: null, error: availableError.message };
+    }
+    
+    return { data: availableFlows, error: null };
+  } catch (err) {
+    console.error('Exception getting flows not in audience:', err);
+    return { data: null, error: 'Failed to get flows not in audience' };
+  }
+}
+
+/**
+ * Get audience names for a cursor flow
+ * @param flowId - The cursor flow ID
+ * @returns Promise with an array of audience names
+ */
+export const getAudienceNamesForFlow = async (
+  flowId: string
+): Promise<string[]> => {
+  try {
+    // Query the audience_flows joining with audiences to get names
+    const { data, error } = await supabase
+      .from('audience_flows')
+      .select(`
+        audiences(name)
+      `)
+      .eq('flow_id', flowId);
+    
+    if (error || !data || data.length === 0) {
+      console.error('Error fetching audience names:', error);
+      return ["No audiences"];
+    }
+    
+    // Use any type to bypass TypeScript's type checking for the complex nested structure
+    const audienceNames = data.map((item: any) => {
+      if (item.audiences && typeof item.audiences.name === 'string') {
+        return item.audiences.name;
+      }
+      return "Unknown audience";
+    });
+    
+    return audienceNames;
   } catch (error) {
-    console.error('Error in getAudienceNameForFlow:', error);
-    return "Unknown audience";
+    console.error('Error in getAudienceNamesForFlow:', error);
+    return ["Unknown audience"];
   }
 };
 
@@ -545,7 +632,7 @@ export const getAudienceNameForFlow = async (
  * @returns Promise with cursor flows data including audience names
  */
 export const fetchCursorFlowsWithAudiences = async (organizationId?: string): Promise<{
-  data: (CursorFlow & { audienceName: string })[] | null;
+  data: (CursorFlow & { audienceNames: string[] })[] | null;
   error: any;
 }> => {
   try {
@@ -556,54 +643,17 @@ export const fetchCursorFlowsWithAudiences = async (organizationId?: string): Pr
       console.error('Error fetching cursor flows:', flowsError);
       return { data: null, error: flowsError };
     }
-    
-    // Create a map of audience IDs to process more efficiently
-    const audienceIds = flowsData
-      .map(flow => flow.audience_id)
-      .filter(id => id !== null) as string[];
-    
-    if (audienceIds.length === 0) {
-      // No audiences to fetch, return flows with placeholder
-      return { 
-        data: flowsData.map(flow => ({ 
-          ...flow, 
-          audienceName: "No audience" 
-        })),
-        error: null
-      };
-    }
-    
-    // Fetch all needed audiences in one query
-    const { data: audiencesData, error: audiencesError } = await supabase
-      .from('audiences')
-      .select('id, name')
-      .in('id', audienceIds);
-    
-    if (audiencesError) {
-      console.error('Error fetching audiences:', audiencesError);
-      // Still return flows but with unknown audience names
-      return { 
-        data: flowsData.map(flow => ({ 
-          ...flow, 
-          audienceName: "Unknown audience" 
-        })),
-        error: audiencesError
-      };
-    }
-    
-    // Create a map for quick audience lookup
-    const audienceMap = (audiencesData || []).reduce((map, audience) => {
-      map[audience.id] = audience.name;
-      return map;
-    }, {} as Record<string, string>);
-    
-    // Add audience names to flows
-    const flowsWithAudiences = flowsData.map(flow => ({
-      ...flow,
-      audienceName: flow.audience_id 
-        ? (audienceMap[flow.audience_id] || "Unknown audience") 
-        : "No audience"
-    }));
+
+    // Create a map for flows with their audience names
+    const flowsWithAudiences = await Promise.all(
+      flowsData.map(async (flow) => {
+        const audienceNames = await getAudienceNamesForFlow(flow.id);
+        return {
+          ...flow,
+          audienceNames
+        };
+      })
+    );
     
     return { data: flowsWithAudiences, error: null };
   } catch (error) {

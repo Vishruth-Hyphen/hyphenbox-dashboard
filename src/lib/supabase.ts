@@ -70,7 +70,6 @@ export type CursorFlow = {
   created_at: string;
   updated_at: string;
   created_by: string;
-  audience_id: string | null;
   published_at: string | null;
   published_by: string | null;
 };
