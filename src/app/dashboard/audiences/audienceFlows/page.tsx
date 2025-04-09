@@ -298,6 +298,29 @@ function AudienceFlowsContent() {
           </div>
         </div>
         
+        {/* Add audience ID display below the heading */}
+        {audience && (
+          <div className="flex items-center -mt-6 mb-2">
+            <span className="text-sm text-gray-500 mr-2">ID: {audience.id}</span>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(audience.id);
+                // Show temporary "Copied!" tooltip
+                const tooltip = document.createElement('span');
+                tooltip.textContent = 'Copied!';
+                tooltip.className = 'absolute text-xs text-green-600 ml-6';
+                const button = document.activeElement;
+                button?.parentNode?.appendChild(tooltip);
+                setTimeout(() => tooltip.remove(), 2000);
+              }}
+              className="p-1 rounded hover:bg-gray-100"
+              title="Copy ID to clipboard"
+            >
+              <SubframeCore.Icon name="FeatherClipboard" className="h-3 w-3 text-gray-500" />
+            </button>
+          </div>
+        )}
+        
         {isLoading ? (
           <div className="flex w-full items-center justify-center p-12">
             <span className="text-body font-body text-subtext-color">Loading flows...</span>

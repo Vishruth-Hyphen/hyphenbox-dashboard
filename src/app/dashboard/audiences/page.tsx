@@ -52,6 +52,9 @@ function Audiences() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Add this state for copied feedback
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   // Initialize organization context and load data
   useEffect(() => {
     if (session?.user && currentOrgId) {
@@ -249,6 +252,16 @@ function Audiences() {
     }
   };
 
+  // Add this function to handle copying
+  const copyToClipboard = (id: string) => {
+    navigator.clipboard.writeText(id)
+      .then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
+      })
+      .catch(err => console.error('Failed to copy: ', err));
+  };
+
   return (
     <InviteTeamMembers>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
@@ -338,14 +351,33 @@ function Audiences() {
                   className="cursor-pointer hover:bg-neutral-50"
                 >
                   <Table.Cell>
-                    <div className="flex items-center gap-2">
-                      <SubframeCore.Icon 
-                        name="FeatherUsers" 
-                        className="text-body font-body text-neutral-500"
-                      />
-                      <span className="whitespace-nowrap text-body-bold font-body-bold text-neutral-700">
-                        {audience.name}
-                      </span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <SubframeCore.Icon 
+                          name="FeatherUsers" 
+                          className="text-body font-body text-neutral-500"
+                        />
+                        <span className="whitespace-nowrap text-body-bold font-body-bold text-neutral-700">
+                          {audience.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center mt-1">
+                        <span className="text-xs text-gray-500 mr-2">ID: {audience.id}</span>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(audience.id);
+                          }}
+                          className="p-1 rounded hover:bg-gray-100"
+                          title="Copy ID to clipboard"
+                        >
+                          {copiedId === audience.id ? (
+                            <span className="text-xs text-green-600">✓ Copied</span>
+                          ) : (
+                            <SubframeCore.Icon name="FeatherClipboard" className="h-3 w-3 text-gray-500" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </Table.Cell>
                   <Table.Cell>
