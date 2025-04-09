@@ -1,8 +1,16 @@
-import { supabase, type CursorFlow, type CursorFlowStep, type CursorFlowRequest } from "../lib/supabase";
+import { supabase, type CursorFlow as BaseCursorFlow, type CursorFlowStep, type CursorFlowRequest } from "../lib/supabase";
 import { 
   parseRecordingToSteps, 
   createCursorFlowSteps as createSteps 
 } from "./cursorflowsteps";
+
+// Add interface for the nested audience data structure
+interface AudienceFlow {
+  audience: {
+    id: string;
+    name: string;
+  };
+}
 
 /**
  * Fetches all cursor flows from the database
@@ -10,7 +18,7 @@ import {
  * @returns Promise with cursor flows data
  */
 export const fetchCursorFlows = async (organizationId?: string): Promise<{
-  data: CursorFlow[] | null;
+  data: BaseCursorFlow[] | null;
   error: any;
 }> => {
   try {
@@ -46,7 +54,7 @@ export const createCursorFlow = async (
   organizationId: string,
   userId: string
 ): Promise<{
-  data: CursorFlow | null;
+  data: BaseCursorFlow | null;
   error: any;
 }> => {
   try {
@@ -126,7 +134,7 @@ export const processJsonForCursorFlow = async (
   existingFlowId?: string
 ): Promise<{
   success: boolean;
-  flowData?: CursorFlow;
+  flowData?: BaseCursorFlow;
   error?: any;
   textGenerated?: boolean;
   textProcessedCount?: number;
@@ -138,7 +146,7 @@ export const processJsonForCursorFlow = async (
       return { success: false, error: 'Invalid JSON file' };
     }
 
-    let flowData: CursorFlow;
+    let flowData: BaseCursorFlow;
     
     if (existingFlowId) {
       // Update existing flow
@@ -631,31 +639,40 @@ export const getAudienceNamesForFlow = async (
  * @param organizationId - Optional organization ID to filter by
  * @returns Promise with cursor flows data including audience names
  */
-export const fetchCursorFlowsWithAudiences = async (organizationId?: string): Promise<{
-  data: (CursorFlow & { audienceNames: string[] })[] | null;
-  error: any;
-}> => {
+export const fetchCursorFlowsWithAudiences = async (organizationId: string) => {
   try {
-    // First fetch all flows
-    const { data: flowsData, error: flowsError } = await fetchCursorFlows(organizationId);
-    
-    if (flowsError || !flowsData) {
-      console.error('Error fetching cursor flows:', flowsError);
-      return { data: null, error: flowsError };
+    const { data, error } = await supabase
+      .from('cursor_flows')
+      .select(`
+        *,
+        audience_flows!inner (
+          audience:audiences (
+            id,
+            name
+          )
+        )
+      `)
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching cursor flows:', error);
+      return { data: null, error };
     }
 
-    // Create a map for flows with their audience names
-    const flowsWithAudiences = await Promise.all(
-      flowsData.map(async (flow) => {
-        const audienceNames = await getAudienceNamesForFlow(flow.id);
-        return {
-          ...flow,
-          audienceNames
-        };
-      })
-    );
-    
-    return { data: flowsWithAudiences, error: null };
+    // Transform with proper types
+    const transformedData = data.map(flow => ({
+      ...flow,
+      audiences: (flow.audience_flows as AudienceFlow[])
+        .map(af => af.audience)
+        .filter(Boolean)
+        .map(audience => ({
+          id: audience.id,
+          name: audience.name
+        }))
+    }));
+
+    return { data: transformedData, error: null };
   } catch (error) {
     console.error('Error in fetchCursorFlowsWithAudiences:', error);
     return { data: null, error };
@@ -753,4 +770,9 @@ export const generateCursorFlowText = async (
     console.error('Error triggering text generation:', error);
     return { success: false, error };
   }
-}; 
+};
+
+// Update the CursorFlow type to include audiences
+export interface CursorFlow extends BaseCursorFlow {
+  audiences?: Array<{ id: string; name: string }>;
+} 
