@@ -268,6 +268,11 @@ function AudienceFlowsContent() {
     }
   };
 
+  // Add this function to handle flow click
+  const handleFlowClick = (flow: any) => {
+    router.push(`/dashboard/cursorflows/preview?flowId=${flow.id}&name=${encodeURIComponent(flow.name)}`);
+  };
+
   return (
     <InviteTeamMembers>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
@@ -408,13 +413,8 @@ function AudienceFlowsContent() {
                     title={flow.name}
                     subtitle={
                       <>
-                        <div className="flex items-center gap-1">
-                          <Badge variant={getBadgeVariantForStatus(flow.status)}>
-                            {flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
-                          </Badge>
-                        </div>
                         {flowAudiences[flow.id] && flowAudiences[flow.id].length > 1 && (
-                          <div className="mt-1 text-xs text-gray-500">
+                          <div className="text-xs text-gray-500">
                             <span>Also in: </span>
                             <span className="font-medium">
                               {flowAudiences[flow.id]
@@ -426,6 +426,8 @@ function AudienceFlowsContent() {
                       </>
                     }
                     metadata=""
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleFlowClick(flow)}
                   >
                     <Badge variant={getBadgeVariantForStatus(flow.status)}>
                       {flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
