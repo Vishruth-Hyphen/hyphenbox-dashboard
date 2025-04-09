@@ -23,9 +23,9 @@ function CallbackContent() {
         }
         
         if (!session) {
-          // The hash hasn't been processed yet, let's wait a moment
+          // The hash hasn't been processed yet, let's wait longer
           console.log("[AUTH] No session yet, waiting...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Increased from 1000ms
           
           // Check again
           const { data: { session: refreshedSession } } = await supabase.auth.getSession();
@@ -42,9 +42,9 @@ function CallbackContent() {
           currentSession = session;
         }
         
-        // Add explicit session stabilization delay
+        // Add explicit session stabilization delay - longer for invitation flow
         console.log("[AUTH] Session found, stabilizing...");
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Increased from 1500ms
         
         // Explicitly refresh the session to ensure tokens are saved to storage/cookies
         console.log("[AUTH] Refreshing session tokens...");
@@ -55,7 +55,14 @@ function CallbackContent() {
 
         // Add a delay to ensure auth is fully established
         console.log("[AUTH] Waiting for auth to fully establish...");
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 4000)); // Increased from 2000ms
+        
+        // Check if the URL contains invitation-specific parameters
+        const isInvitationFlow = window.location.href.includes("type=invite");
+        if (isInvitationFlow) {
+          console.log("[AUTH] Detected invitation flow, adding extra wait time");
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Extra wait for invitation flow
+        }
         
         // ADDED: Check for pending invitations
         let membershipCreated = false;

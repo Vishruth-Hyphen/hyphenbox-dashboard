@@ -55,9 +55,6 @@ export async function middleware(request: NextRequest) {
     // Allow callback route to proceed (Supabase client handles session creation here)
     // But if a user somehow hits callback while logged in, redirect them
     if (pathname === '/auth/callback') {
-       if (session) {
-           return NextResponse.redirect(new URL('/dashboard', request.url));
-       }
        return response; // Return potentially modified response with cookies
     }
 
