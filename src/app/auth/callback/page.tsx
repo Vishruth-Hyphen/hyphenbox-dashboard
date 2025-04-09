@@ -25,7 +25,7 @@ function CallbackContent() {
         if (!session) {
           // The hash hasn't been processed yet, let's wait longer
           console.log("[AUTH] No session yet, waiting...");
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000ms
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Reduce from 1500ms
           
           // Check again
           const { data: { session: refreshedSession } } = await supabase.auth.getSession();
@@ -42,10 +42,6 @@ function CallbackContent() {
           currentSession = session;
         }
         
-        // Add explicit session stabilization delay - longer for invitation flow
-        console.log("[AUTH] Session found, stabilizing...");
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000ms
-        
         // Explicitly refresh the session to ensure tokens are saved to storage/cookies
         console.log("[AUTH] Refreshing session tokens...");
         const { error: refreshError } = await supabase.auth.refreshSession();
@@ -55,14 +51,7 @@ function CallbackContent() {
 
         // Add a delay to ensure auth is fully established
         console.log("[AUTH] Waiting for auth to fully establish...");
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Reduced from 4000ms
-        
-        // Check if the URL contains invitation-specific parameters
-        const isInvitationFlow = window.location.href.includes("type=invite");
-        if (isInvitationFlow) {
-          console.log("[AUTH] Detected invitation flow, adding extra wait time");
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
-        }
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Reduce from 2000ms
         
         // ADDED: Check for pending invitations
         let membershipCreated = false;
@@ -139,9 +128,11 @@ function CallbackContent() {
           }
         }
         
-        // CRITICAL: Only redirect to dashboard if we confirmed membership exists
+        // After membership creation
         if (membershipCreated) {
-          console.log("[AUTH] Organization membership confirmed, redirecting to dashboard");
+          console.log("[AUTH] Organization membership confirmed, refreshing auth state...");
+          await supabase.auth.refreshSession();
+          await new Promise(resolve => setTimeout(resolve, 1000));
           router.push('/dashboard');
         } else {
           // Special case for super admins
