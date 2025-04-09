@@ -39,6 +39,49 @@ function CallbackContent() {
           console.error("[AUTH] Error refreshing session:", refreshError.message);
         }
 
+        // ADDED: Check for pending invitations
+        if (session?.user?.email) {
+          console.log("[AUTH] Checking for pending invitations for:", session.user.email);
+          
+          // Find pending invitations for this email
+          const { data: invitations, error: invitationError } = await supabase
+            .from('team_invitations')
+            .select('id, organization_id')
+            .eq('email', session.user.email)
+            .eq('status', 'pending')
+            .lt('expires_at', new Date().toISOString());
+          
+          if (invitationError) {
+            console.error("[AUTH] Error fetching invitations:", invitationError.message);
+          } else if (invitations && invitations.length > 0) {
+            console.log("[AUTH] Found pending invitations:", invitations.length);
+            
+            // Process each invitation
+            for (const invite of invitations) {
+              // Create organization membership
+              const { error: membershipError } = await supabase
+                .from('organization_members')
+                .insert({
+                  organization_id: invite.organization_id,
+                  user_id: session.user.id,
+                  role: 'member' // Default role
+                });
+              
+              if (membershipError) {
+                console.error("[AUTH] Error creating membership:", membershipError.message);
+              } else {
+                // Update invitation status
+                await supabase
+                  .from('team_invitations')
+                  .update({ status: 'accepted' })
+                  .eq('id', invite.id);
+                  
+                console.log("[AUTH] Successfully processed invitation:", invite.id);
+              }
+            }
+          }
+        }
+
         // Redirect to dashboard after ensuring session is saved
         router.push('/dashboard');
       } catch (err) {
