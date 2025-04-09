@@ -53,19 +53,30 @@ function CallbackContent() {
           console.error("[AUTH] Error refreshing session:", refreshError.message);
         }
 
+        // Add a delay to ensure auth is fully established
+        console.log("[AUTH] Waiting for auth to fully establish...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         // ADDED: Check for pending invitations
         let membershipCreated = false;
         
         if (currentSession?.user?.email) {
-          console.log("[AUTH] Checking for pending invitations for:", currentSession.user.email);
+          const userEmail = currentSession.user.email.toLowerCase().trim();
+          console.log("[AUTH] Checking for pending invitations for:", userEmail);
           
-          // Find pending invitations for this email
+          // Find pending invitations for this email - use case-insensitive comparison
           const { data: invitations, error: invitationError } = await supabase
             .from('team_invitations')
             .select('id, organization_id')
-            .eq('email', currentSession.user.email)
+            .ilike('email', userEmail) // Use ilike for case-insensitive matching
             .eq('status', 'pending')
             .gt('expires_at', new Date().toISOString());
+          
+          console.log("[AUTH-DEBUG] Invitation search result:", {
+            email: userEmail,
+            found: invitations ? invitations.length : 0,
+            error: invitationError ? invitationError.message : null
+          });
           
           if (invitationError) {
             console.error("[AUTH] Error fetching invitations:", invitationError.message);
