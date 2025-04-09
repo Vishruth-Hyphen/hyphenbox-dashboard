@@ -26,6 +26,18 @@ import {
 import { TextField } from "@/ui/components/TextField";
 import { TextArea } from "@/ui/components/TextArea";
 
+// Add interface for the audience type
+interface Audience {
+  id: string;
+  name: string;
+}
+
+// Update the CursorFlow type to include audiences
+interface ExtendedCursorFlow extends CursorFlow {
+  audiences?: Audience[];
+  audienceName?: string;
+}
+
 // Component that uses searchParams
 function CursorFlowsContent() {
   const router = useRouter();
@@ -36,7 +48,7 @@ function CursorFlowsContent() {
   // State to control the open/closed state of the upload dialog
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   // State to store cursor flows fetched from database
-  const [cursorFlows, setCursorFlows] = useState<(CursorFlow & { audienceName?: string })[]>([]);
+  const [cursorFlows, setCursorFlows] = useState<ExtendedCursorFlow[]>([]);
   // State to track loading status
   const [isLoading, setIsLoading] = useState(true);
   // State for the flow name
@@ -322,7 +334,22 @@ function CursorFlowsContent() {
                   key={flow.id}
                   icon={flow.status === 'requested' ? "FeatherClock" : "FeatherMousePointer"}
                   title={flow.name}
-                  subtitle={flow.audienceName || "No audience"}
+                  subtitle={
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {flow.audiences && flow.audiences.length > 0 ? (
+                        flow.audiences.map((audience: Audience) => (
+                          <span
+                            key={audience.id}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
+                          >
+                            {audience.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-500 text-sm">No audience</span>
+                      )}
+                    </div>
+                  }
                   metadata=""
                   onClick={() => navigateToPreview(flow.id, flow.name, flow.status)}
                   className={`cursor-pointer ${flow.status === 'requested' ? 'opacity-70' : ''}`}
