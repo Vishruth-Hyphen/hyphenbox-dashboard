@@ -23,10 +23,6 @@ function CallbackContent() {
         }
         
         if (!session) {
-          // The hash hasn't been processed yet, let's wait longer
-          console.log("[AUTH] No session yet, waiting...");
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Reduce from 1500ms
-          
           // Check again
           const { data: { session: refreshedSession } } = await supabase.auth.getSession();
           if (!refreshedSession) {
@@ -50,8 +46,8 @@ function CallbackContent() {
         }
 
         // Add a delay to ensure auth is fully established
-        console.log("[AUTH] Waiting for auth to fully establish...");
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Reduce from 2000ms
+        // console.log("[AUTH] Waiting for auth to fully establish...");
+        // await new Promise(resolve => setTimeout(resolve, 300)); // Reduce from 2000ms
         
         // ADDED: Check for pending invitations
         let membershipCreated = false;
