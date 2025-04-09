@@ -60,49 +60,46 @@ const InviteTeamMembersRoot = React.forwardRef<
           />
         }
         footer={
-          <>
-            <div className="flex grow shrink-0 basis-0 items-start gap-2">
+          <div className="flex w-full items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 max-w-[80%]">
               <Avatar image="https://res.cloudinary.com/subframe/image/upload/v1711417513/shared/kwut7rhuyivweg8tmyzl.jpg">
                 {session?.user?.email?.charAt(0).toUpperCase() || 'A'}
               </Avatar>
-              <div className="flex flex-col items-start">
-                <span className="text-caption-bold font-caption-bold text-default-font">
+              <div className="flex flex-col min-w-0">
+                <span className="text-body font-body text-default-font truncate">
                   {session?.user?.email?.split('@')[0] || 'User'}
                 </span>
-                <span className="text-caption font-caption text-subtext-color">
+                <span className="text-body font-body text-subtext-color truncate">
                   {session?.user?.email || 'No email'}
                 </span>
               </div>
             </div>
-            <SubframeCore.DropdownMenu.Root>
-              <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                <IconButton size="small" icon="FeatherMoreHorizontal" />
-              </SubframeCore.DropdownMenu.Trigger>
-              <SubframeCore.DropdownMenu.Portal>
-                <SubframeCore.DropdownMenu.Content
-                  side="bottom"
-                  align="start"
-                  sideOffset={4}
-                  asChild={true}
-                >
-                  <DropdownMenu>
-                    <DropdownMenu.DropdownItem icon="FeatherUser">
-                      Profile
-                    </DropdownMenu.DropdownItem>
-                    <DropdownMenu.DropdownItem icon="FeatherSettings">
-                      Settings
-                    </DropdownMenu.DropdownItem>
-                    <DropdownMenu.DropdownItem 
-                      icon="FeatherLogOut" 
-                      onClick={handleLogout}
-                    >
-                      Log out
-                    </DropdownMenu.DropdownItem>
-                  </DropdownMenu>
-                </SubframeCore.DropdownMenu.Content>
-              </SubframeCore.DropdownMenu.Portal>
-            </SubframeCore.DropdownMenu.Root>
-          </>
+            
+            <div className="flex-shrink-0 w-8">
+              <SubframeCore.DropdownMenu.Root>
+                <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                  <IconButton size="small" icon="FeatherMoreHorizontal" />
+                </SubframeCore.DropdownMenu.Trigger>
+                <SubframeCore.DropdownMenu.Portal>
+                  <SubframeCore.DropdownMenu.Content
+                    side="bottom"
+                    align="start"
+                    sideOffset={4}
+                    asChild={true}
+                  >
+                    <DropdownMenu>
+                      <DropdownMenu.DropdownItem 
+                        icon="FeatherLogOut" 
+                        onClick={handleLogout}
+                      >
+                        Log out
+                      </DropdownMenu.DropdownItem>
+                    </DropdownMenu>
+                  </SubframeCore.DropdownMenu.Content>
+                </SubframeCore.DropdownMenu.Portal>
+              </SubframeCore.DropdownMenu.Root>
+            </div>
+          </div>
         }
       >
         <SidebarWithSections.NavSection label="Guide">
