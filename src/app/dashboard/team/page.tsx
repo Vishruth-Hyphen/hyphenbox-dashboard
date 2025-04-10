@@ -15,10 +15,12 @@ import { useOrganization } from '@/hooks/useAuth';
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
+import { DialogLayout } from "@/ui/layouts/DialogLayout";
 
 type Invitation = {
   id: string;
   email: string;
+  name?: string;
   status: 'pending' | 'accepted' | 'expired';
   created_at: string;
   inviter: {
@@ -35,10 +37,12 @@ function TeamContent() {
   const { currentOrgId, currentOrgName } = useOrganization();
   
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Function to load team invitations
   const loadInvitations = useCallback(async () => {
@@ -51,7 +55,8 @@ function TeamContent() {
         .from('team_invitations')
         .select(`
           id, 
-          email, 
+          email,
+          name, 
           status, 
           created_at,
           created_by
@@ -120,6 +125,7 @@ function TeamContent() {
         },
         body: JSON.stringify({
           email: inviteEmail.trim(),
+          name: inviteName.trim(),
           organizationId: currentOrgId,
           userId: session.user.id
         }),
@@ -133,6 +139,8 @@ function TeamContent() {
       
       // Reset and reload
       setInviteEmail('');
+      setInviteName('');
+      setIsModalOpen(false);
       await loadInvitations();
       
     } catch (err) {
@@ -143,8 +151,17 @@ function TeamContent() {
     }
   };
 
-  // Function to cancel/delete an invitation
+  // Reset form when modal opens/closes
+  const handleModalOpenChange = (open: boolean) => {
+    setIsModalOpen(open);
+    if (!open) {
+      setInviteEmail('');
+      setInviteName('');
+      setError(null);
+    }
+  };
 
+  // Function to cancel/delete an invitation
   const cancelInvitation = async (invitationId: string) => {
     try {
       const { error } = await supabase
@@ -212,22 +229,12 @@ function TeamContent() {
             </div>
           )}
           
-          <div className="flex w-full items-end gap-4">
-            <TextField className="flex-1" label="Email address" helpText="">
-              <TextField.Input
-                placeholder="Enter team member's email"
-                value={inviteEmail}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
-                  setInviteEmail(event.target.value)
-                }
-              />
-            </TextField>
+          <div className="flex w-full items-end justify-end gap-4">
             <Button
               icon="FeatherUserPlus"
-              onClick={sendInvite}
-              disabled={isSubmitting || !inviteEmail.trim()}
+              onClick={() => setIsModalOpen(true)}
             >
-              {isSubmitting ? 'Sending...' : 'Send Invite'}
+              Invite Team Member
             </Button>
           </div>
           
@@ -238,9 +245,9 @@ function TeamContent() {
               <Table
                 header={
                   <Table.HeaderRow>
-                    <Table.HeaderCell>Email</Table.HeaderCell>
+                    <Table.HeaderCell>Name</Table.HeaderCell>
                     <Table.HeaderCell>Status</Table.HeaderCell>
-                    <Table.HeaderCell>Invited by</Table.HeaderCell>
+                    <Table.HeaderCell>Email</Table.HeaderCell>
                     <Table.HeaderCell>Date</Table.HeaderCell>
                     <Table.HeaderCell />
                   </Table.HeaderRow>
@@ -257,7 +264,7 @@ function TeamContent() {
                     <Table.Row key={invitation.id}>
                       <Table.Cell>
                         <span className="whitespace-nowrap text-body-bold font-body-bold text-neutral-700">
-                          {invitation.email}
+                          {invitation.name || 'No name provided'}
                         </span>
                       </Table.Cell>
                       <Table.Cell>
@@ -271,14 +278,9 @@ function TeamContent() {
                         </Badge>
                       </Table.Cell>
                       <Table.Cell>
-                        <div className="flex items-center gap-2">
-                          <Avatar size="small">
-                            {invitation.inviter?.name?.charAt(0) || invitation.inviter?.email?.charAt(0) || '?'}
-                          </Avatar>
-                          <span className="whitespace-nowrap text-body font-body text-neutral-500">
-                            {invitation.inviter?.name || invitation.inviter?.email || 'Unknown'}
-                          </span>
-                        </div>
+                        <span className="whitespace-nowrap text-body font-body text-neutral-500">
+                          {invitation.email}
+                        </span>
                       </Table.Cell>
                       <Table.Cell>
                         <span className="whitespace-nowrap text-body font-body text-neutral-500">
@@ -304,6 +306,66 @@ function TeamContent() {
           </div>
         </div>
       </div>
+
+      {/* Invite Modal */}
+      <DialogLayout open={isModalOpen} onOpenChange={handleModalOpenChange}>
+        <div className="flex h-full w-full flex-col items-start gap-6 px-6 py-6">
+          <div className="flex w-full items-start justify-between">
+            <div className="flex grow shrink-0 basis-0 flex-col items-start gap-1">
+              <span className="text-heading-3 font-heading-3 text-default-font">
+                Invite Team Member
+              </span>
+              <span className="text-body font-body text-subtext-color">
+                Send an invitation to join your team workspace
+              </span>
+            </div>
+            <SubframeCore.Icon
+              className="text-body font-body text-neutral-500 cursor-pointer"
+              name="FeatherX"
+              onClick={() => setIsModalOpen(false)}
+            />
+          </div>
+          {error && (
+            <div className="w-full p-3 bg-red-50 text-red-600 rounded-md">
+              {error}
+            </div>
+          )}
+          <div className="flex w-full flex-col items-start gap-6">
+            <TextField className="h-auto w-full flex-none" label="Name" helpText="">
+              <TextField.Input
+                placeholder="e.g. John Doe"
+                value={inviteName}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInviteName(event.target.value)}
+              />
+            </TextField>
+            <TextField
+              className="h-auto w-full flex-none"
+              label="Email address"
+              helpText=""
+            >
+              <TextField.Input
+                placeholder="e.g. teammate@company.com"
+                value={inviteEmail}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInviteEmail(event.target.value)}
+              />
+            </TextField>
+          </div>
+          <div className="flex w-full items-center justify-end gap-2">
+            <Button
+              variant="neutral-tertiary"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={sendInvite}
+              disabled={isSubmitting || !inviteEmail.trim()}
+            >
+              {isSubmitting ? 'Sending...' : 'Send Invitation'}
+            </Button>
+          </div>
+        </div>
+      </DialogLayout>
     </InviteTeamMembers>
   );
 }
