@@ -331,4 +331,40 @@ export async function addFlowsToAudience(audienceId: string, flowIds: string[]) 
     console.error('Exception adding flows to audience:', err);
     return { success: false, error: 'Failed to add flows to audience' };
   }
+}
+
+/**
+ * Delete an audience and its relationships in the audience_flows junction table
+ * @param audienceId - The ID of the audience to delete
+ * @returns Promise with success status
+ */
+export async function deleteAudience(audienceId: string) {
+  try {
+    // First, delete all relationships in the audience_flows junction table
+    const { error: relationshipsError } = await supabase
+      .from('audience_flows')
+      .delete()
+      .eq('audience_id', audienceId);
+    
+    if (relationshipsError) {
+      console.error('Error deleting audience relationships:', relationshipsError);
+      return { success: false, error: relationshipsError.message };
+    }
+    
+    // Then, delete the audience record itself
+    const { error: audienceError } = await supabase
+      .from('audiences')
+      .delete()
+      .eq('id', audienceId);
+    
+    if (audienceError) {
+      console.error('Error deleting audience:', audienceError);
+      return { success: false, error: audienceError.message };
+    }
+    
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Exception deleting audience:', err);
+    return { success: false, error: 'Failed to delete audience' };
+  }
 } 

@@ -20,6 +20,7 @@ import {
   createAudienceWithFlows,
   removeFlowFromAudience,
   addFlowsToAudience,
+  deleteAudience,
   type AudienceData
 } from "@/utils/audiences";
 import { 
@@ -59,22 +60,14 @@ function Audiences() {
   // Add this state for copied feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Add a state for flows with audience info
-  const [flowsWithAudiences, setFlowsWithAudiences] = useState<any[]>([]);
-  // Add state for showing the flow management dialog
-  const [isManageFlowsDialogOpen, setIsManageFlowsDialogOpen] = useState(false);
-  const [selectedAudience, setSelectedAudience] = useState<AudienceData | null>(null);
-
   // Initialize organization context and load data
   useEffect(() => {
     if (session?.user && currentOrgId) {
       loadData(currentOrgId);
-      loadFlowsWithAudiences(); // Load flow distribution data
     } else if (session?.user) {
       const orgId = getOrganizationId();
       if (orgId) {
         loadData(orgId);
-        loadFlowsWithAudiences(); // Load flow distribution data
       } else {
         // Make sure loading state is cleared even if no org ID is found
         setIsLoading(false);
@@ -275,27 +268,54 @@ function Audiences() {
       .catch(err => console.error('Failed to copy: ', err));
   };
 
-  // Add a function to load flows with their audience distributions
-  const loadFlowsWithAudiences = async () => {
-    if (!currentOrgId) return;
+  // Handle deleting an audience
+  const handleDeleteAudience = async (audienceId: string) => {
+    if (!audienceId || !window.confirm("Are you sure you want to delete this audience? This action cannot be undone.")) {
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
     
     try {
-      const { data, error } = await fetchCursorFlowsWithAudiences(currentOrgId);
-      if (error) {
-        console.error('Error loading flows with audiences:', error);
+      const { success, error: deleteError } = await deleteAudience(audienceId);
+      
+      if (!success) {
+        console.error('Failed to delete audience:', deleteError);
+        setError('Failed to delete audience');
+        setIsLoading(false);
         return;
       }
       
-      setFlowsWithAudiences(data || []);
+      // Show success message
+      setSuccessMessage('Audience deleted successfully!');
+      
+      // Reload audiences to get the updated list
+      if (currentOrgId) {
+        const { data: refreshedAudiences } = await fetchAudiences(currentOrgId);
+        if (refreshedAudiences) {
+          setAudiences(refreshedAudiences);
+          
+          // Update flow counts
+          const audienceIds = refreshedAudiences.map((a: AudienceData) => a.id);
+          const { data: countsData } = await fetchAudienceFlowCounts(audienceIds);
+          
+          if (countsData) {
+            setFlowCounts(countsData);
+          }
+        }
+      }
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
     } catch (err) {
-      console.error('Error in loadFlowsWithAudiences:', err);
+      console.error('Error deleting audience:', err);
+      setError('An error occurred while deleting the audience');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  // Add a function to handle opening the manage flows dialog
-  const handleManageFlows = (audience: AudienceData) => {
-    setSelectedAudience(audience);
-    setIsManageFlowsDialogOpen(true);
   };
 
   return (
@@ -464,17 +484,14 @@ function Audiences() {
                               <DropdownMenu.DropdownItem icon="FeatherEdit2">
                                 Edit
                               </DropdownMenu.DropdownItem>
-                              <DropdownMenu.DropdownItem icon="FeatherTrash">
-                                Delete
-                              </DropdownMenu.DropdownItem>
                               <DropdownMenu.DropdownItem 
-                                icon="FeatherLayers"
+                                icon="FeatherTrash"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleManageFlows(audience);
+                                  handleDeleteAudience(audience.id);
                                 }}
                               >
-                                Manage Flows
+                                Delete
                               </DropdownMenu.DropdownItem>
                             </DropdownMenu>
                           </SubframeCore.DropdownMenu.Content>
@@ -612,64 +629,6 @@ function Audiences() {
           </div>
         </div>
       </DialogLayout>
-
-      {/* Flow Management Dialog */}
-      {selectedAudience && (
-        <DialogLayout open={isManageFlowsDialogOpen} onOpenChange={setIsManageFlowsDialogOpen}>
-          <div className="flex h-full w-full flex-col items-start gap-6 px-6 py-6">
-            <div className="flex w-full flex-col items-start gap-1">
-              <span className="text-heading-3 font-heading-3 text-default-font">
-                Manage Flows for {selectedAudience.name}
-              </span>
-              <span className="text-body font-body text-subtext-color">
-                Add or remove flows from this audience. Flows can belong to multiple audiences simultaneously.
-              </span>
-            </div>
-            
-            {error && (
-              <Alert
-                title="Error"
-                description={error}
-                variant="error"
-                actions={
-                  <IconButton
-                    icon="FeatherX"
-                    onClick={() => setError(null)}
-                  />
-                }
-              />
-            )}
-            
-            <div className="flex w-full flex-col gap-4">
-              <h3 className="font-medium">Organization Flows</h3>
-              <div className="max-h-96 overflow-y-auto border rounded-md">
-                {flowsWithAudiences.map(flow => (
-                  <div key={flow.id} className="border-b p-3 flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium">{flow.name}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {flow.audienceNames.length > 0 && (
-                          <>
-                            <span className="text-xs text-gray-500">In audiences:</span>
-                            {flow.audienceNames.map((name: string, index: number) => (
-                              <Badge 
-                                key={`${flow.id}-${index}`}
-                                className="text-xs"
-                              >
-                                {name}
-                              </Badge>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </DialogLayout>
-      )}
     </InviteTeamMembers>
   );
 }
