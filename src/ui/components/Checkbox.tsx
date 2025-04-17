@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface CheckboxRootProps
@@ -23,7 +24,7 @@ const CheckboxRoot = React.forwardRef<HTMLElement, CheckboxRootProps>(
     return (
       <SubframeCore.Checkbox.Root asChild={true} {...otherProps}>
         <button
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "group/3816e3b5 flex cursor-pointer items-center gap-2 text-left",
             className
           )}

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useContext } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { Button } from "@/ui/components/Button";
 import { Badge } from "@/ui/components/Badge";
@@ -274,8 +273,8 @@ function AudienceFlowsContent() {
   };
 
   return (
-    <InviteTeamMembers>
-      <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
+    <>
+      <div className="container mx-auto flex h-full w-full flex-col items-start gap-8 px-4 py-12 md:px-6 lg:px-8">
         <Breadcrumbs>
           <Breadcrumbs.Item>
             <Link href="/dashboard">Guide</Link>
@@ -564,7 +563,7 @@ function AudienceFlowsContent() {
           </div>
         </div>
       </DialogLayout>
-    </InviteTeamMembers>
+    </>
   );
 }
 

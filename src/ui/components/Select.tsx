@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ItemProps
@@ -25,7 +26,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
       {...otherProps}
     >
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/969e345b flex h-8 w-full cursor-pointer items-center gap-1 rounded-md px-3 hover:bg-neutral-100 active:bg-neutral-50 data-[highlighted]:bg-brand-50",
           className
         )}
@@ -56,7 +57,7 @@ const TriggerValue = React.forwardRef<HTMLElement, TriggerValueProps>(
   ) {
     return (
       <SubframeCore.Select.Value
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "w-full whitespace-nowrap text-body font-body text-default-font",
           className
         )}
@@ -83,7 +84,7 @@ const Content = React.forwardRef<HTMLElement, ContentProps>(function Content(
   return children ? (
     <SubframeCore.Select.Content asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full flex-col items-start overflow-hidden rounded-md border border-solid border-neutral-border bg-white px-1 py-1 shadow-lg",
           className
         )}
@@ -112,7 +113,7 @@ const Trigger = React.forwardRef<HTMLElement, TriggerProps>(function Trigger(
   return (
     <SubframeCore.Select.Trigger asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex h-full w-full items-center gap-2 px-3",
           className
         )}
@@ -145,7 +146,7 @@ const ItemText = React.forwardRef<HTMLElement, ItemTextProps>(function ItemText(
   return children ? (
     <SubframeCore.Select.ItemText {...otherProps}>
       <span
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "text-body font-body text-default-font",
           className
         )}
@@ -213,7 +214,7 @@ const SelectRoot = React.forwardRef<HTMLElement, SelectRootProps>(
         required={required}
       >
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "group/bb88f90b flex cursor-pointer flex-col items-start gap-1",
             className
           )}
@@ -226,7 +227,7 @@ const SelectRoot = React.forwardRef<HTMLElement, SelectRootProps>(
             </span>
           ) : null}
           <div
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "flex h-8 w-full flex-none flex-col items-start rounded-md border border-solid border-neutral-border bg-default-background group-focus-within/bb88f90b:border group-focus-within/bb88f90b:border-solid group-focus-within/bb88f90b:border-brand-primary",
               {
                 "border border-solid border-neutral-100 bg-neutral-100 group-hover/bb88f90b:border group-hover/bb88f90b:border-solid group-hover/bb88f90b:border-neutral-border group-hover/bb88f90b:bg-neutral-100":
@@ -240,7 +241,7 @@ const SelectRoot = React.forwardRef<HTMLElement, SelectRootProps>(
           </div>
           {helpText ? (
             <span
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "text-caption font-caption text-subtext-color",
                 { "text-error-700": error }
               )}

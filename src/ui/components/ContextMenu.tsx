@@ -6,6 +6,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ContextItemProps
@@ -30,7 +31,7 @@ const ContextItem = React.forwardRef<HTMLElement, ContextItemProps>(
     return (
       <SubframeCore.ContextMenu.Item asChild={true} {...otherProps}>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "group/9358ee78 flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 hover:bg-neutral-100 active:bg-neutral-50 data-[highlighted]:bg-neutral-100",
             className
           )}
@@ -69,7 +70,7 @@ const ContextDivider = React.forwardRef<HTMLElement, ContextDividerProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full items-start gap-2 px-1 py-1",
           className
         )}
@@ -94,7 +95,7 @@ const ContextMenuRoot = React.forwardRef<HTMLElement, ContextMenuRootProps>(
   ) {
     return children ? (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex min-w-[192px] flex-col items-start rounded-md border border-solid border-neutral-border bg-default-background px-1 py-1 shadow-lg",
           className
         )}

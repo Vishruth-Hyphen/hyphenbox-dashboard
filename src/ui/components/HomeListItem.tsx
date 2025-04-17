@@ -7,6 +7,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 import { DropdownMenu } from "./DropdownMenu";
 
@@ -35,7 +36,7 @@ const HomeListItemRoot = React.forwardRef<HTMLElement, HomeListItemRootProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/ebb36ea3 flex w-full cursor-pointer items-center gap-4 rounded-md px-2 py-2 hover:bg-neutral-50",
           className
         )}

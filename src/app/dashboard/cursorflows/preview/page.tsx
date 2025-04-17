@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { Badge } from "@/ui/components/Badge";
 import { Button } from "@/ui/components/Button";
@@ -602,41 +601,41 @@ function CursorFlowPreviewContent() {
 
   if (isLoading) {
     return (
-      <InviteTeamMembers>
+      <>
         <div className="container max-w-none flex h-full w-full flex-col items-center justify-center bg-default-background py-12">
           <span className="text-body font-body text-default-font">Loading cursor flow...</span>
         </div>
-      </InviteTeamMembers>
+      </>
     );
   }
 
   if (error) {
     return (
-      <InviteTeamMembers>
+      <>
         <div className="container max-w-none flex h-full w-full flex-col items-center justify-center gap-4 bg-default-background py-12">
           <span className="text-body-bold font-body-bold text-error-500">{error}</span>
           <Button onClick={goBackToList}>Back to Cursor Flows</Button>
         </div>
-      </InviteTeamMembers>
+      </>
     );
   }
 
   if (!flow) {
     return (
-      <InviteTeamMembers>
+      <>
         <div className="container max-w-none flex h-full w-full flex-col items-center justify-center gap-4 bg-default-background py-12">
           <span className="text-body-bold font-body-bold text-default-font">Cursor flow not found</span>
           <Button onClick={goBackToList}>Back to Cursor Flows</Button>
         </div>
-      </InviteTeamMembers>
+      </>
     );
   }
 
   // Filter to get only click steps for the main display
   const clickSteps = activeSteps.filter(step => getStepType(step) === 'click');
 
-  return (
-    <InviteTeamMembers>
+  return ( 
+      <>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-6 bg-default-background py-12">
         <div className="flex w-full flex-wrap items-center justify-between">
           <div className="flex grow shrink-0 basis-0 flex-col items-start gap-2">
@@ -815,7 +814,7 @@ function CursorFlowPreviewContent() {
           </div>
         </div>
       </div>
-    </InviteTeamMembers>
+    </>
   );
 }
 

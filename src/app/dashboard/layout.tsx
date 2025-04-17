@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { DashboardSidebar } from "@/ui/layouts/DashboardSidebar";
+import HyphenBox from "../HyphenBox";
 
 export default function DashboardLayout({
   children,
@@ -28,6 +30,11 @@ export default function DashboardLayout({
     );
   }
 
-  // Show content only if authenticated
-  return session ? <>{children}</> : null;
+  // Render the DashboardSidebar and children only if authenticated
+  return session ? (
+    <DashboardSidebar>
+      {/* <HyphenBox /> */}
+      {children}
+    </DashboardSidebar>
+  ) : null;
 } 

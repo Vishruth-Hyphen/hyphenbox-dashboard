@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import * as SubframeCore from "@subframe/core";
+import * as SubframeUtils from "../utils";
 
 interface AvatarRootProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "brand" | "neutral" | "error" | "success" | "warning";
@@ -31,7 +31,7 @@ const AvatarRoot = React.forwardRef<HTMLElement, AvatarRootProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/bec25ae6 flex h-8 w-8 flex-col items-center justify-center gap-2 overflow-hidden rounded-full bg-brand-100 relative",
           {
             "rounded-md": square,
@@ -51,7 +51,7 @@ const AvatarRoot = React.forwardRef<HTMLElement, AvatarRootProps>(
       >
         {children ? (
           <span
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "line-clamp-1 w-full font-['Inter'] text-[14px] font-[500] leading-[14px] text-brand-800 text-center absolute",
               {
                 "font-['Inter'] text-[10px] font-[500] leading-[10px] tracking-normal":
@@ -72,7 +72,7 @@ const AvatarRoot = React.forwardRef<HTMLElement, AvatarRootProps>(
         ) : null}
         {image ? (
           <img
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "h-8 w-8 flex-none object-cover absolute",
               {
                 "h-5 w-5 flex-none": size === "x-small",

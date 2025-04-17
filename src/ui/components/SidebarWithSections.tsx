@@ -7,9 +7,8 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface NavItemProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: SubframeCore.IconName;
@@ -17,8 +16,6 @@ interface NavItemProps extends React.HTMLAttributes<HTMLDivElement> {
   selected?: boolean;
   rightSlot?: React.ReactNode;
   className?: string;
-  href?: string;
-  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 const NavItem = React.forwardRef<HTMLElement, NavItemProps>(function NavItem(
@@ -28,36 +25,22 @@ const NavItem = React.forwardRef<HTMLElement, NavItemProps>(function NavItem(
     selected = false,
     rightSlot,
     className,
-    href,
-    onClick,
     ...otherProps
   }: NavItemProps,
   ref
 ) {
-  const router = useRouter();
-  
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (onClick) {
-      onClick(e);
-    } else if (href && !e.defaultPrevented) {
-      e.preventDefault();
-      router.push(href);
-    }
-  };
-
-  const navItemContent = (
+  return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/2713e17b flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 hover:bg-neutral-50 active:bg-neutral-100",
         { "bg-brand-50 hover:bg-brand-50 active:bg-brand-100": selected },
         className
       )}
-      onClick={handleClick}
       ref={ref as any}
       {...otherProps}
     >
       <SubframeCore.Icon
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "text-heading-3 font-heading-3 text-neutral-600",
           { "text-brand-700": selected }
         )}
@@ -65,7 +48,7 @@ const NavItem = React.forwardRef<HTMLElement, NavItemProps>(function NavItem(
       />
       {children ? (
         <span
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "line-clamp-1 grow shrink-0 basis-0 text-body-bold font-body-bold text-neutral-600",
             { "text-brand-700": selected }
           )}
@@ -75,15 +58,6 @@ const NavItem = React.forwardRef<HTMLElement, NavItemProps>(function NavItem(
       ) : null}
       {rightSlot ? <div className="flex items-center">{rightSlot}</div> : null}
     </div>
-  );
-
-  // If href is provided, wrap with Link for better SEO and accessibility
-  return href ? (
-    <Link href={href} style={{ textDecoration: 'none' }}>
-      {navItemContent}
-    </Link>
-  ) : (
-    navItemContent
   );
 });
 
@@ -100,7 +74,7 @@ const NavSection = React.forwardRef<HTMLElement, NavSectionProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full flex-col items-start gap-1 pt-6",
           className
         )}
@@ -147,25 +121,25 @@ const SidebarWithSectionsRoot = React.forwardRef<
 ) {
   return (
     <nav
-      className={SubframeCore.twClassNames(
-        "flex h-full w-60 flex-col items-start border-r border-solid border-neutral-border bg-default-background",
+      className={SubframeUtils.twClassNames(
+        "flex h-full w-60 flex-col border-r border-solid border-neutral-border bg-default-background",
         className
       )}
       ref={ref as any}
       {...otherProps}
     >
       {header ? (
-        <div className="flex w-full flex-col items-start gap-2 px-6 py-6">
+        <div className="w-full px-6 py-6 flex-shrink-0">
           {header}
         </div>
       ) : null}
       {children ? (
-        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start px-4 py-4 overflow-auto">
+        <div className="w-full grow basis-0 flex-col items-start px-4 py-4 overflow-y-auto">
           {children}
         </div>
       ) : null}
       {footer ? (
-        <div className="flex w-full items-center gap-4 border-t border-solid border-neutral-border px-6 py-6">
+        <div className="flex w-full items-center gap-4 border-t border-solid border-neutral-border px-4 py-4 flex-shrink-0">
           {footer}
         </div>
       ) : null}

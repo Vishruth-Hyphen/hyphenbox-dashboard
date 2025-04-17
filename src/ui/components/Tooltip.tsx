@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import * as SubframeCore from "@subframe/core";
+import * as SubframeUtils from "../utils";
 
 interface TooltipRootProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
@@ -19,7 +19,7 @@ const TooltipRoot = React.forwardRef<HTMLElement, TooltipRootProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex flex-col items-start gap-2 rounded-md border border-solid border-neutral-900 bg-neutral-800 px-2 py-1 shadow-lg",
           className
         )}

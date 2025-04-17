@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface SkeletonCircleRootProps
@@ -22,7 +23,7 @@ const SkeletonCircleRoot = React.forwardRef<
 ) {
   return (
     <SubframeCore.Skeleton
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/8b6e7a84 flex h-9 w-9 flex-col items-start gap-2 rounded-full bg-neutral-200",
         { "h-5 w-5": size === "x-small", "h-7 w-7": size === "small" },
         className

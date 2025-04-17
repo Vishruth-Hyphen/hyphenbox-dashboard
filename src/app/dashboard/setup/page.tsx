@@ -1,12 +1,13 @@
 "use client";
 
 import React from "react";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
+// import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { IconWithBackground } from "@/ui/components/IconWithBackground";
 
 function Setup() {
   return (
-    <InviteTeamMembers>
+    // <InviteTeamMembers>
+    <>
       <div className="container max-w-none flex h-full w-full flex-col items-center gap-4 bg-default-background py-12">
         <div className="flex w-full max-w-[768px] flex-col items-start gap-12">
           <div className="flex w-full flex-col items-start">
@@ -107,8 +108,7 @@ function Setup() {
           </div>
         </div>
       </div>
-    </InviteTeamMembers>
+    </>
   );
 }
-
 export default Setup;

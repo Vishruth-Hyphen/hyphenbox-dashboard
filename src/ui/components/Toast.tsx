@@ -6,6 +6,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ToastRootProps
@@ -33,7 +34,7 @@ const ToastRoot = React.forwardRef<HTMLElement, ToastRootProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/2c7966c2 flex w-80 items-center gap-4 rounded-md bg-default-background px-4 py-3 shadow-lg",
           className
         )}
@@ -41,7 +42,7 @@ const ToastRoot = React.forwardRef<HTMLElement, ToastRootProps>(
         {...otherProps}
       >
         <SubframeCore.Icon
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "text-heading-3 font-heading-3 text-neutral-700",
             {
               "text-success-700": variant === "success",
@@ -54,7 +55,7 @@ const ToastRoot = React.forwardRef<HTMLElement, ToastRootProps>(
         <div className="flex grow shrink-0 basis-0 flex-col items-start">
           {title ? (
             <span
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "w-full text-body-bold font-body-bold text-default-font",
                 {
                   "text-success-700": variant === "success",

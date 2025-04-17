@@ -7,8 +7,9 @@
  */
 
 import React from "react";
-import * as SubframeCore from "@subframe/core";
+import * as SubframeUtils from "../utils";
 import { DropdownMenu } from "./DropdownMenu";
+import * as SubframeCore from "@subframe/core";
 
 interface ListRowRootProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
@@ -33,7 +34,7 @@ const ListRowRoot = React.forwardRef<HTMLElement, ListRowRootProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/d6e8f80b flex w-full cursor-pointer items-center gap-4 rounded-md px-2 py-2 hover:bg-neutral-50 active:bg-neutral-100 focus-within:bg-neutral-100",
           className
         )}

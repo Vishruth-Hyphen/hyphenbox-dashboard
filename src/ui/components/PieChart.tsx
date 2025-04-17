@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface PieChartRootProps
@@ -16,7 +17,7 @@ const PieChartRoot = React.forwardRef<HTMLElement, PieChartRootProps>(
   function PieChartRoot({ className, ...otherProps }: PieChartRootProps, ref) {
     return (
       <SubframeCore.PieChart
-        className={SubframeCore.twClassNames("h-52 w-52", className)}
+        className={SubframeUtils.twClassNames("h-52 w-52", className)}
         ref={ref as any}
         colors={[
           "#3b82f6",

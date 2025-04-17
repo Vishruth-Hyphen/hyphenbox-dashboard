@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface LoaderRootProps
@@ -20,7 +21,7 @@ const LoaderRoot = React.forwardRef<HTMLElement, LoaderRootProps>(
   ) {
     return (
       <SubframeCore.Loader
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/f2e570c8 text-body font-body text-brand-600",
           {
             "text-heading-2 font-heading-2": size === "large",

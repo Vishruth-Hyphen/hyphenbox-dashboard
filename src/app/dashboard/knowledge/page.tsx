@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { IconWithBackground } from "@/ui/components/IconWithBackground";
 import { Button } from "@/ui/components/Button";
@@ -335,8 +334,8 @@ function Knowledge() {
   };
 
   return (
-    <InviteTeamMembers>
-      <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 px-8 py-12 bg-gray-50">
+    <>
+      <div className="container mx-auto flex h-full w-full flex-col items-start gap-8 px-4 py-12 md:px-6 lg:px-8">
         <Breadcrumbs>
           <Breadcrumbs.Item>Workspace</Breadcrumbs.Item>
           <Breadcrumbs.Divider />
@@ -680,7 +679,7 @@ function Knowledge() {
           </div>
         </div>
       </DialogLayout>
-    </InviteTeamMembers>
+    </>
   );
 }
 

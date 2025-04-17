@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ItemProps
@@ -28,7 +29,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
   return (
     <SubframeCore.ToggleGroup.Item asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/56dea6ed flex h-7 w-full cursor-pointer items-center justify-center gap-2 rounded-md px-2 py-1 active:bg-neutral-100 aria-[checked=true]:bg-default-background aria-[checked=true]:shadow-sm hover:aria-[checked=true]:bg-default-background active:aria-[checked=true]:bg-default-background",
           { "hover:bg-transparent active:bg-transparent": disabled },
           className
@@ -36,7 +37,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
         ref={ref as any}
       >
         <SubframeCore.Icon
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "text-body font-body text-subtext-color group-hover/56dea6ed:text-default-font group-active/56dea6ed:text-default-font group-aria-[checked=true]/56dea6ed:text-default-font",
             {
               "text-neutral-400 group-hover/56dea6ed:text-neutral-400 group-active/56dea6ed:text-neutral-400":
@@ -47,7 +48,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
         />
         {children ? (
           <span
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "whitespace-nowrap text-caption-bold font-caption-bold text-subtext-color group-hover/56dea6ed:text-default-font group-active/56dea6ed:text-default-font group-aria-[checked=true]/56dea6ed:text-default-font",
               {
                 "text-neutral-400 group-hover/56dea6ed:text-neutral-400 group-active/56dea6ed:text-neutral-400":
@@ -79,7 +80,7 @@ const ToggleGroupRoot = React.forwardRef<HTMLElement, ToggleGroupRootProps>(
     return children ? (
       <SubframeCore.ToggleGroup.Root asChild={true} {...otherProps}>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex items-center gap-0.5 overflow-hidden rounded-md bg-neutral-100 px-0.5 py-0.5",
             className
           )}

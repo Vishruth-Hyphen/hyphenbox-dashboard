@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ItemProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -28,7 +29,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
 ) {
   return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/d5612535 flex h-10 cursor-pointer items-center justify-center gap-2 border-b border-solid border-neutral-border px-2.5 py-0.5",
         {
           "border-b-2 border-solid border-brand-600 px-2.5 pt-0.5 pb-px hover:border-b-2 hover:border-solid hover:border-brand-600":
@@ -40,7 +41,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
       {...otherProps}
     >
       <SubframeCore.Icon
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "text-body font-body text-subtext-color group-hover/d5612535:text-default-font",
           {
             "text-neutral-400 group-hover/d5612535:text-neutral-400": disabled,
@@ -51,7 +52,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
       />
       {children ? (
         <span
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "text-body-bold font-body-bold text-subtext-color group-hover/d5612535:text-default-font",
             {
               "text-neutral-400 group-hover/d5612535:text-neutral-400":
@@ -78,7 +79,7 @@ const TabsRoot = React.forwardRef<HTMLElement, TabsRootProps>(function TabsRoot(
 ) {
   return (
     <div
-      className={SubframeCore.twClassNames("flex w-full items-end", className)}
+      className={SubframeUtils.twClassNames("flex w-full items-end", className)}
       ref={ref as any}
       {...otherProps}
     >

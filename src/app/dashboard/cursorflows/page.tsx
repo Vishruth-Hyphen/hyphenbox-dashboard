@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { Button } from "@/ui/components/Button";
 import { Badge } from "@/ui/components/Badge";
@@ -259,7 +258,7 @@ function CursorFlowsContent() {
   }
 
   return (
-    <InviteTeamMembers>
+    <>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
         <Breadcrumbs>
           <Breadcrumbs.Item>Guide</Breadcrumbs.Item>
@@ -598,7 +597,7 @@ function CursorFlowsContent() {
           </div>
         </div>
       </DialogLayout>
-    </InviteTeamMembers>
+    </>
   );
 }
 

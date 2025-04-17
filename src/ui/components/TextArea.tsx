@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface InputProps
@@ -18,14 +19,13 @@ interface InputProps
   className?: string;
 }
 
-// Export Input component separately to avoid bundling issues
-export const TextAreaInput = React.forwardRef<HTMLElement, InputProps>(function Input(
+const Input = React.forwardRef<HTMLElement, InputProps>(function Input(
   { placeholder, className, ...otherProps }: InputProps,
   ref
 ) {
   return (
     <textarea
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "min-h-[96px] w-full border-none bg-transparent px-2 py-1.5 text-body font-body text-default-font outline-none placeholder:text-neutral-400",
         className
       )}
@@ -61,7 +61,7 @@ const TextAreaRoot = React.forwardRef<HTMLElement, TextAreaRootProps>(
   ) {
     return (
       <label
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/4ec05ee8 flex flex-col items-start gap-1",
           className
         )}
@@ -75,7 +75,7 @@ const TextAreaRoot = React.forwardRef<HTMLElement, TextAreaRootProps>(
         ) : null}
         {children ? (
           <div
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "flex w-full grow shrink-0 basis-0 flex-col items-start rounded-md border border-solid border-neutral-border bg-default-background pl-1 group-focus-within/4ec05ee8:border group-focus-within/4ec05ee8:border-solid group-focus-within/4ec05ee8:border-brand-primary",
               {
                 "border border-solid border-neutral-100 bg-neutral-100 group-hover/4ec05ee8:border group-hover/4ec05ee8:border-solid group-hover/4ec05ee8:border-neutral-border group-focus-within/4ec05ee8:bg-default-background":
@@ -89,7 +89,7 @@ const TextAreaRoot = React.forwardRef<HTMLElement, TextAreaRootProps>(
         ) : null}
         {helpText ? (
           <span
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "text-caption font-caption text-subtext-color",
               { "text-error-700": error }
             )}
@@ -102,7 +102,6 @@ const TextAreaRoot = React.forwardRef<HTMLElement, TextAreaRootProps>(
   }
 );
 
-// Explicitly export the compound component  
 export const TextArea = Object.assign(TextAreaRoot, {
-  Input: TextAreaInput,
+  Input,
 });

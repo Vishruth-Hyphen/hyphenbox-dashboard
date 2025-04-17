@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface BarChartRootProps
@@ -20,7 +21,7 @@ const BarChartRoot = React.forwardRef<HTMLElement, BarChartRootProps>(
   ) {
     return (
       <SubframeCore.BarChart
-        className={SubframeCore.twClassNames("h-80 w-full", className)}
+        className={SubframeUtils.twClassNames("h-80 w-full", className)}
         ref={ref as any}
         stacked={stacked}
         colors={[

@@ -6,6 +6,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ContentProps
@@ -21,7 +22,7 @@ const Content = React.forwardRef<HTMLElement, ContentProps>(function Content(
   return children ? (
     <SubframeCore.Dialog.Content asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex min-w-[320px] flex-col items-start gap-2 rounded-md border border-solid border-neutral-border bg-default-background shadow-lg max-h-[90vh] overflow-auto",
           className
         )}
@@ -49,7 +50,7 @@ const DialogRoot = React.forwardRef<HTMLElement, DialogRootProps>(
     return children ? (
       <SubframeCore.Dialog.Root asChild={true} {...otherProps}>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex h-full w-full flex-col items-center justify-center gap-2 bg-[#00000099]",
             className
           )}

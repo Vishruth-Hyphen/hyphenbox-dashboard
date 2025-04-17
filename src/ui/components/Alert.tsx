@@ -6,6 +6,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface AlertRootProps
@@ -33,7 +34,7 @@ const AlertRoot = React.forwardRef<HTMLElement, AlertRootProps>(
   ) {
     return (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/3a65613d flex w-full flex-col items-start gap-2 rounded-md border border-solid border-neutral-200 bg-neutral-50 pl-4 pr-3 py-3",
           {
             "border border-solid border-warning-100 bg-warning-50":
@@ -52,7 +53,7 @@ const AlertRoot = React.forwardRef<HTMLElement, AlertRootProps>(
       >
         <div className="flex w-full items-center gap-4">
           <SubframeCore.Icon
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "text-heading-3 font-heading-3 text-neutral-800",
               {
                 "text-warning-800": variant === "warning",
@@ -66,7 +67,7 @@ const AlertRoot = React.forwardRef<HTMLElement, AlertRootProps>(
           <div className="flex grow shrink-0 basis-0 flex-col items-start">
             {title ? (
               <span
-                className={SubframeCore.twClassNames(
+                className={SubframeUtils.twClassNames(
                   "w-full whitespace-pre-wrap text-body-bold font-body-bold text-default-font",
                   {
                     "text-warning-900": variant === "warning",
@@ -81,7 +82,7 @@ const AlertRoot = React.forwardRef<HTMLElement, AlertRootProps>(
             ) : null}
             {description ? (
               <span
-                className={SubframeCore.twClassNames(
+                className={SubframeUtils.twClassNames(
                   "w-full whitespace-pre-wrap text-caption font-caption text-subtext-color",
                   {
                     "text-warning-800": variant === "warning",

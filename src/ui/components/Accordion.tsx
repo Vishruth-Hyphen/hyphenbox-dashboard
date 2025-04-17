@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ChevronProps
@@ -19,7 +20,7 @@ const Chevron = React.forwardRef<HTMLElement, ChevronProps>(function Chevron(
   return (
     <SubframeCore.Collapsible.Chevron {...otherProps}>
       <SubframeCore.Icon
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "text-body font-body text-default-font",
           className
         )}
@@ -43,7 +44,7 @@ const Content = React.forwardRef<HTMLElement, ContentProps>(function Content(
   return children ? (
     <SubframeCore.Collapsible.Content asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full flex-col items-start gap-2",
           className
         )}
@@ -68,7 +69,7 @@ const Trigger = React.forwardRef<HTMLElement, TriggerProps>(function Trigger(
   return children ? (
     <SubframeCore.Collapsible.Trigger asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full cursor-pointer flex-col items-start gap-2",
           className
         )}
@@ -95,7 +96,7 @@ const AccordionRoot = React.forwardRef<HTMLElement, AccordionRootProps>(
     return (
       <SubframeCore.Collapsible.Root asChild={true} {...otherProps}>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "group/d2e81e20 flex w-full flex-col items-start rounded-md",
             className
           )}

@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface OptionProps
@@ -20,7 +21,7 @@ const Option = React.forwardRef<HTMLElement, OptionProps>(function Option(
   return (
     <SubframeCore.RadioGroup.Item asChild={true} {...otherProps}>
       <button
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "group/0f804ad9 flex cursor-pointer items-center gap-2 border-none bg-transparent text-left disabled:cursor-default",
           className
         )}
@@ -69,7 +70,7 @@ const RadioGroupRoot = React.forwardRef<HTMLElement, RadioGroupRootProps>(
     return (
       <SubframeCore.RadioGroup.Root asChild={true} {...otherProps}>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "group/c4b6300e flex flex-col items-start gap-2",
             className
           )}
@@ -82,7 +83,7 @@ const RadioGroupRoot = React.forwardRef<HTMLElement, RadioGroupRootProps>(
           ) : null}
           {children ? (
             <div
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "flex flex-col items-start gap-2",
                 { "flex-row flex-nowrap gap-6": horizontal }
               )}
@@ -92,7 +93,7 @@ const RadioGroupRoot = React.forwardRef<HTMLElement, RadioGroupRootProps>(
           ) : null}
           {helpText ? (
             <span
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "text-caption font-caption text-subtext-color",
                 { "text-error-700": error }
               )}

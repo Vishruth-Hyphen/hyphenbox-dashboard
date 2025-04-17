@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import * as SubframeCore from "@subframe/core";
+import * as SubframeUtils from "../utils";
 
 interface StepProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "completed" | "active";
@@ -30,7 +30,7 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
 ) {
   return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/c1145464 flex w-full cursor-pointer flex-col items-center justify-center gap-1",
         className
       )}
@@ -38,26 +38,26 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
       {...otherProps}
     >
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full items-center justify-center gap-2",
           { "flex-row flex-nowrap gap-2": firstStep }
         )}
       >
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex h-px grow shrink-0 basis-0 flex-col items-center gap-2 bg-neutral-300",
             { "bg-transparent": firstStep }
           )}
         />
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex h-7 w-7 flex-none flex-col items-center justify-center gap-2 rounded-full bg-neutral-100",
             { "bg-brand-100": variant === "active" || variant === "completed" }
           )}
         >
           {stepNumber ? (
             <span
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "text-caption-bold font-caption-bold text-subtext-color",
                 {
                   "text-brand-700":
@@ -70,7 +70,7 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
           ) : null}
         </div>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex h-px grow shrink-0 basis-0 flex-col items-center gap-2 bg-neutral-300",
             { "bg-transparent": lastStep }
           )}
@@ -78,7 +78,7 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
       </div>
       {label ? (
         <span
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "text-body font-body text-subtext-color group-hover/c1145464:text-default-font",
             {
               "text-body-bold font-body-bold text-default-font":
@@ -106,7 +106,7 @@ const StepperRoot = React.forwardRef<HTMLElement, StepperRootProps>(
   ) {
     return children ? (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full items-start justify-center",
           className
         )}

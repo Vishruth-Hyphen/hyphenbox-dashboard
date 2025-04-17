@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface RadioCardProps
@@ -22,14 +23,14 @@ const RadioCard = React.forwardRef<HTMLElement, RadioCardProps>(
     return (
       <SubframeCore.RadioGroup.Item asChild={true} {...otherProps}>
         <button
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "group/502d4919 flex w-full cursor-pointer items-center gap-4 rounded-md border border-solid border-neutral-200 bg-default-background px-4 py-3 text-left hover:bg-neutral-50 aria-[checked=true]:border aria-[checked=true]:border-solid aria-[checked=true]:border-brand-200 aria-[checked=true]:bg-brand-50 hover:aria-[checked=true]:bg-brand-50 disabled:cursor-default disabled:border disabled:border-solid disabled:border-neutral-100 disabled:bg-neutral-50 hover:disabled:cursor-default hover:disabled:bg-neutral-50",
             className
           )}
           ref={ref as any}
         >
           <div
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "flex items-start gap-2 rounded-full pt-0.5",
               { hidden: hideRadio }
             )}
@@ -67,7 +68,7 @@ const RadioCardGroupRoot = React.forwardRef<
   return children ? (
     <SubframeCore.RadioGroup.Root asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex items-start gap-2",
           className
         )}

@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 import { Accordion } from "./Accordion";
 
@@ -27,7 +28,7 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
 ) {
   return (
     <Accordion
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/c841484c cursor-pointer",
         className
       )}
@@ -77,7 +78,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
 ) {
   return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/42786044 flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 hover:bg-neutral-50",
         { "bg-brand-100 hover:bg-brand-100": selected },
         className
@@ -86,7 +87,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
       {...otherProps}
     >
       <SubframeCore.Icon
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "text-body font-body text-default-font",
           { "text-brand-700": selected }
         )}
@@ -94,7 +95,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
       />
       {label ? (
         <span
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "line-clamp-1 grow shrink-0 basis-0 text-body font-body text-default-font",
             { "text-brand-700": selected }
           )}
@@ -118,7 +119,7 @@ const TreeViewRoot = React.forwardRef<HTMLElement, TreeViewRootProps>(
   ) {
     return children ? (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex w-full flex-col items-start",
           className
         )}

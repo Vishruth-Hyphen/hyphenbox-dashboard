@@ -11,6 +11,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface FullscreenDialogRootProps
@@ -31,7 +32,7 @@ const FullscreenDialogRoot = React.forwardRef<
   return children ? (
     <SubframeCore.FullScreenDialog.Root asChild={true} {...otherProps}>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex h-full w-full flex-col items-start bg-default-background",
           className
         )}

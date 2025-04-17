@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface AreaChartRootProps
@@ -20,7 +21,7 @@ const AreaChartRoot = React.forwardRef<HTMLElement, AreaChartRootProps>(
   ) {
     return (
       <SubframeCore.AreaChart
-        className={SubframeCore.twClassNames("h-80 w-full", className)}
+        className={SubframeUtils.twClassNames("h-80 w-full", className)}
         ref={ref as any}
         stacked={stacked}
         colors={[

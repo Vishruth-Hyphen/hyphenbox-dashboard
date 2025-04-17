@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { Button } from "@/ui/components/Button";
 import { Table } from "@/ui/components/Table";
@@ -319,7 +318,7 @@ function Audiences() {
   };
 
   return (
-    <InviteTeamMembers>
+    <>
       <div className="container max-w-none flex h-full w-full flex-col items-start gap-8 bg-default-background py-12">
         <div className="flex w-full items-center justify-between">
           <Breadcrumbs>
@@ -629,7 +628,7 @@ function Audiences() {
           </div>
         </div>
       </DialogLayout>
-    </InviteTeamMembers>
+    </>
   );
 }
 

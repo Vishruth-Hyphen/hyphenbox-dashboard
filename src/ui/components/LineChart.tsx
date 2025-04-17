@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface LineChartRootProps
@@ -19,7 +20,7 @@ const LineChartRoot = React.forwardRef<HTMLElement, LineChartRootProps>(
   ) {
     return (
       <SubframeCore.LineChart
-        className={SubframeCore.twClassNames("h-80 w-full", className)}
+        className={SubframeUtils.twClassNames("h-80 w-full", className)}
         ref={ref as any}
         colors={[
           "#3b82f6",

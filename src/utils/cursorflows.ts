@@ -645,34 +645,31 @@ export const fetchCursorFlowsWithAudiences = async (organizationId: string) => {
       .from('cursor_flows')
       .select(`
         *,
-        audience_flows!inner (
-          audience:audiences (
-            id,
-            name
-          )
+        audience_flows (
+          audience:audiences (id, name)
         )
       `)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching cursor flows:', error);
+      console.error('Error fetching cursor flows with audiences:', error);
       return { data: null, error };
     }
 
-    // Transform with proper types
-    const transformedData = data.map(flow => ({
-      ...flow,
-      audiences: (flow.audience_flows as AudienceFlow[])
-        .map(af => af.audience)
-        .filter(Boolean)
-        .map(audience => ({
-          id: audience.id,
-          name: audience.name
-        }))
-    }));
+    // Process data to flatten audience information using the correct property name
+    const processedData = data?.map(flow => {
+      // Access the correct property 'audience_flows'
+      const audiences = (flow.audience_flows as any[])?.map(afa => afa.audience).filter(Boolean) || [];
+      // Remove the junction table data using the correct property name
+      const { audience_flows, ...restOfFlow } = flow; 
+      return {
+        ...restOfFlow,
+        audiences: audiences
+      };
+    }) || [];
 
-    return { data: transformedData, error: null };
+    return { data: processedData, error: null };
   } catch (error) {
     console.error('Error in fetchCursorFlowsWithAudiences:', error);
     return { data: null, error };

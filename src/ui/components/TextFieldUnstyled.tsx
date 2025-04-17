@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface InputProps
@@ -21,7 +22,7 @@ const Input = React.forwardRef<HTMLElement, InputProps>(function Input(
 ) {
   return (
     <input
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "h-full w-full border-none bg-transparent text-body font-body text-default-font outline-none placeholder:text-neutral-400",
         className
       )}
@@ -47,7 +48,7 @@ const TextFieldUnstyledRoot = React.forwardRef<
 ) {
   return children ? (
     <label
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "flex flex-col items-start gap-1",
         className
       )}

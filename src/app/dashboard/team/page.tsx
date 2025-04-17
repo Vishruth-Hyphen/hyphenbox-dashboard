@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { InviteTeamMembers } from "@/ui/layouts/InviteTeamMembers";
 import * as SubframeCore from "@subframe/core";
 import { TextField } from "@/ui/components/TextField";
 import { Button } from "@/ui/components/Button";
@@ -193,8 +192,8 @@ function TeamContent() {
   }
 
   return (
-    <InviteTeamMembers>
-      <div className="container max-w-none flex h-full w-full flex-col items-start gap-4 bg-default-background py-12">
+    <>
+      <div className="container mx-auto flex h-full w-full flex-col items-start gap-8 px-4 py-12 md:px-6 lg:px-8">
         <div className="flex w-full flex-wrap items-center gap-2 mobile:flex-row mobile:flex-wrap mobile:gap-4">
           <div className="flex grow shrink-0 basis-0 items-center gap-2">
             <SubframeCore.Icon
@@ -366,7 +365,7 @@ function TeamContent() {
           </div>
         </div>
       </DialogLayout>
-    </InviteTeamMembers>
+    </>
   );
 }
 

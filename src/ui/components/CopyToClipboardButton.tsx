@@ -6,6 +6,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 import { Tooltip } from "./Tooltip";
 
@@ -43,7 +44,7 @@ const CopyToClipboardButtonRoot = React.forwardRef<
             {...otherProps}
           >
             <div
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "group/e8c76626 flex h-6 w-6 cursor-pointer flex-col items-center justify-center gap-2 rounded-md hover:bg-neutral-100",
                 className
               )}

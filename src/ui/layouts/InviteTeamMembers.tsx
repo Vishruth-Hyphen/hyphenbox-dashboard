@@ -9,14 +9,12 @@
  */
 
 import React from "react";
-import * as SubframeCore from "@subframe/core";
+import * as SubframeUtils from "../utils";
 import { SidebarWithSections } from "../components/SidebarWithSections";
 import { Avatar } from "../components/Avatar";
 import { DropdownMenu } from "../components/DropdownMenu";
+import * as SubframeCore from "@subframe/core";
 import { IconButton } from "../components/IconButton";
-import { usePathname, useRouter } from "next/navigation";
-import { logoutUser } from '../../utils/authUtils';
-import { useAuth } from '../../hooks/useAuth';
 
 interface InviteTeamMembersRootProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -31,20 +29,9 @@ const InviteTeamMembersRoot = React.forwardRef<
   { children, className, ...otherProps }: InviteTeamMembersRootProps,
   ref
 ) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { session } = useAuth();
-  
-  const handleLogout = async () => {
-    const { success } = await logoutUser();
-    if (success) {
-      router.push('/auth/login');
-    }
-  };
-
   return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "flex h-screen w-full items-start",
         className
       )}
@@ -60,87 +47,73 @@ const InviteTeamMembersRoot = React.forwardRef<
           />
         }
         footer={
-          <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0 max-w-[80%]">
+          <>
+            <div className="flex grow shrink-0 basis-0 items-start gap-2">
               <Avatar image="https://res.cloudinary.com/subframe/image/upload/v1711417513/shared/kwut7rhuyivweg8tmyzl.jpg">
-                {session?.user?.email?.charAt(0).toUpperCase() || 'A'}
+                A
               </Avatar>
-              <div className="flex flex-col min-w-0">
-                <span className="text-body font-body text-default-font truncate">
-                  {session?.user?.email?.split('@')[0] || 'User'}
+              <div className="flex flex-col items-start">
+                <span className="text-caption-bold font-caption-bold text-default-font">
+                  Irvin
                 </span>
-                <span className="text-body font-body text-subtext-color truncate">
-                  {session?.user?.email || 'No email'}
+                <span className="text-caption font-caption text-subtext-color">
+                  Founder
                 </span>
               </div>
             </div>
-            
-            <div className="flex-shrink-0 w-8">
-              <SubframeCore.DropdownMenu.Root>
-                <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                  <IconButton size="small" icon="FeatherMoreHorizontal" />
-                </SubframeCore.DropdownMenu.Trigger>
-                <SubframeCore.DropdownMenu.Portal>
-                  <SubframeCore.DropdownMenu.Content
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    asChild={true}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenu.DropdownItem 
-                        icon="FeatherLogOut" 
-                        onClick={handleLogout}
-                      >
-                        Log out
-                      </DropdownMenu.DropdownItem>
-                    </DropdownMenu>
-                  </SubframeCore.DropdownMenu.Content>
-                </SubframeCore.DropdownMenu.Portal>
-              </SubframeCore.DropdownMenu.Root>
-            </div>
-          </div>
+            <SubframeCore.DropdownMenu.Root>
+              <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                <IconButton size="small" icon="FeatherMoreHorizontal" />
+              </SubframeCore.DropdownMenu.Trigger>
+              <SubframeCore.DropdownMenu.Portal>
+                <SubframeCore.DropdownMenu.Content
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  asChild={true}
+                >
+                  <DropdownMenu>
+                    <DropdownMenu.DropdownItem icon="FeatherUser">
+                      Profile
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem icon="FeatherSettings">
+                      Settings
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem icon="FeatherLogOut">
+                      Log out
+                    </DropdownMenu.DropdownItem>
+                  </DropdownMenu>
+                </SubframeCore.DropdownMenu.Content>
+              </SubframeCore.DropdownMenu.Portal>
+            </SubframeCore.DropdownMenu.Root>
+          </>
         }
       >
         <SidebarWithSections.NavSection label="Guide">
           <SidebarWithSections.NavItem
             icon="FeatherMousePointerClick"
-            selected={pathname === "/dashboard/cursorflows" || pathname.includes("/dashboard/cursorflows")}
-            href="/dashboard/cursorflows"
+            selected={true}
           >
             Cursor Flows
           </SidebarWithSections.NavItem>
-          <SidebarWithSections.NavItem 
-            icon="FeatherBookOpen"
-            selected={pathname === "/dashboard/knowledge" || pathname.includes("/dashboard/knowledge")}
-            href="/dashboard/knowledge"
-          >
+          <SidebarWithSections.NavItem icon="FeatherBookOpen">
             Knowledge
           </SidebarWithSections.NavItem>
-          <SidebarWithSections.NavItem 
-            icon="FeatherUsers"
-            selected={pathname === "/dashboard/audiences" || pathname.includes("/dashboard/audiences")}
-            href="/dashboard/audiences"
-          >
+          <SidebarWithSections.NavItem icon="FeatherUsers">
             Audiences
           </SidebarWithSections.NavItem>
         </SidebarWithSections.NavSection>
         <SidebarWithSections.NavSection label="Team">
-          <SidebarWithSections.NavItem 
-            icon="FeatherUserPlus"
-            selected={pathname === "/dashboard/team" || pathname.includes("/dashboard/team")}
-            href="/dashboard/team"
-          >
+          <SidebarWithSections.NavItem icon="FeatherUserPlus">
             Manage Team
           </SidebarWithSections.NavItem>
         </SidebarWithSections.NavSection>
         <SidebarWithSections.NavSection label="Developers">
-          <SidebarWithSections.NavItem 
-            icon="FeatherCode2"
-            selected={pathname === "/dashboard/setup" || pathname.includes("/dashboard/setup")}
-            href="/dashboard/setup"
-          >
+          <SidebarWithSections.NavItem icon="FeatherCode2">
             Setup
+          </SidebarWithSections.NavItem>
+          <SidebarWithSections.NavItem icon="FeatherCode2">
+            Cursor Appearance
           </SidebarWithSections.NavItem>
         </SidebarWithSections.NavSection>
       </SidebarWithSections>

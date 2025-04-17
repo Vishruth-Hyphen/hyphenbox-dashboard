@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import * as SubframeCore from "@subframe/core";
+import * as SubframeUtils from "../utils";
 import { Drawer } from "../components/Drawer";
 
 interface DrawerLayoutRootProps extends React.ComponentProps<typeof Drawer> {

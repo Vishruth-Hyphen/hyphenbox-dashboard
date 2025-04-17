@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface ItemProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -19,7 +20,7 @@ const Item = React.forwardRef<HTMLElement, ItemProps>(function Item(
 ) {
   return children ? (
     <span
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/bbdc1640 line-clamp-1 cursor-pointer break-words text-body font-body text-subtext-color hover:text-default-font",
         { "text-default-font": active },
         className
@@ -46,7 +47,7 @@ const Divider = React.forwardRef<HTMLElement, DividerProps>(function Divider(
 ) {
   return (
     <SubframeCore.Icon
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "text-body font-body text-subtext-color",
         className
       )}
@@ -69,7 +70,7 @@ const BreadcrumbsRoot = React.forwardRef<HTMLElement, BreadcrumbsRootProps>(
   ) {
     return children ? (
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex items-center gap-2",
           className
         )}

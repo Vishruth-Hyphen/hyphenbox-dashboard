@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface IconWithBackgroundRootProps
@@ -32,7 +33,7 @@ const IconWithBackgroundRoot = React.forwardRef<
 ) {
   return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/c5d68c0e flex h-5 w-5 items-center justify-center gap-2 rounded-full bg-brand-100",
         {
           "rounded-md": square,
@@ -51,7 +52,7 @@ const IconWithBackgroundRoot = React.forwardRef<
       {...otherProps}
     >
       <SubframeCore.Icon
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "font-['Inter'] text-[10px] font-[400] leading-[12px] text-brand-800",
           {
             "text-caption font-caption": size === "small",

@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 
 interface StepProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -32,7 +33,7 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
 ) {
   return (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "group/b094efab flex h-full w-full items-start gap-3",
         className
       )}
@@ -40,26 +41,26 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
       {...otherProps}
     >
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex flex-col items-center gap-1 self-stretch",
           { "h-auto w-auto flex-none": lastStep }
         )}
       >
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex h-2 w-0.5 flex-none flex-col items-center gap-2 bg-neutral-border",
             { "h-2 w-0.5 flex-none": lastStep, hidden: firstStep }
           )}
         />
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-neutral-100",
             { "bg-brand-100": variant === "active" || variant === "completed" }
           )}
         >
           {stepNumber ? (
             <span
-              className={SubframeCore.twClassNames(
+              className={SubframeUtils.twClassNames(
                 "text-body-bold font-body-bold text-subtext-color text-center",
                 {
                   "text-body-bold font-body-bold text-brand-700":
@@ -72,7 +73,7 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
             </span>
           ) : null}
           <SubframeCore.Icon
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "hidden text-heading-3 font-heading-3 text-default-font",
               { "inline-flex text-brand-700": variant === "completed" }
             )}
@@ -80,21 +81,21 @@ const Step = React.forwardRef<HTMLElement, StepProps>(function Step(
           />
         </div>
         <div
-          className={SubframeCore.twClassNames(
+          className={SubframeUtils.twClassNames(
             "flex min-h-[8px] w-0.5 grow shrink-0 basis-0 flex-col items-center gap-2 bg-neutral-border",
             { hidden: lastStep }
           )}
         />
       </div>
       <div
-        className={SubframeCore.twClassNames(
+        className={SubframeUtils.twClassNames(
           "flex grow shrink-0 basis-0 flex-col items-center gap-1 py-4",
           { "px-0 pt-4 pb-1": lastStep, "px-0 pt-1 pb-4": firstStep }
         )}
       >
         {label ? (
           <span
-            className={SubframeCore.twClassNames(
+            className={SubframeUtils.twClassNames(
               "line-clamp-2 w-full text-body font-body text-subtext-color",
               {
                 "text-body-bold font-body-bold text-default-font":
@@ -132,7 +133,7 @@ const VerticalStepperRoot = React.forwardRef<
 ) {
   return children ? (
     <div
-      className={SubframeCore.twClassNames(
+      className={SubframeUtils.twClassNames(
         "flex flex-col items-start",
         className
       )}
