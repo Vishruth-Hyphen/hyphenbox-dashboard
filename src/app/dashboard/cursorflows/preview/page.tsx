@@ -22,7 +22,8 @@ import {
   getBadgeVariantForStatus, 
   publishCursorFlow,
   rollbackCursorFlow,
-  updateCursorFlow
+  updateCursorFlow,
+  triggerEmbeddingGeneration
 } from "@/utils/cursorflows";
 import {
   hasValidScreenshot,
@@ -292,6 +293,14 @@ function CursorFlowPreviewContent() {
        
       setHasUnsavedChanges(false);
       setSuccessMessage('Changes saved successfully');
+      
+      // Trigger embedding generation in the background (fire and forget)
+      triggerEmbeddingGeneration(flowId).then((result: { success: boolean; message?: string; error?: any }) => {
+        if (!result.success) {
+          console.warn(`[Embedding Trigger] Failed to start embedding generation for flow ${flowId}:`, result.error);
+          // Optionally show a non-blocking warning to the user
+        }
+      });
       
       // Hide success message after 3 seconds
       setTimeout(() => {

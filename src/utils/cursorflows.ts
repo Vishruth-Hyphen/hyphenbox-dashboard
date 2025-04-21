@@ -798,4 +798,60 @@ export const updateCursorFlow = async (
     console.error('Error in updateCursorFlow:', error);
     return { success: false, error };
   }
+};
+
+/**
+ * Trigger background embedding generation for a cursor flow
+ * @param flowId - The ID of the cursor flow
+ * @returns Promise with the result of the trigger request
+ */
+export const triggerEmbeddingGeneration = async (
+  flowId: string
+): Promise<{
+  success: boolean;
+  message?: string;
+  error?: any;
+}> => {
+  // console.log(`[Frontend Embedding Trigger] Attempting to trigger embedding for flow: ${flowId}`); // Removed debug log
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    // Explicit check for the environment variable
+    if (!apiUrl) {
+        const errorMsg = "[Frontend Embedding Trigger] Error: NEXT_PUBLIC_API_URL environment variable is not set or empty.";
+        console.error(errorMsg); // Keep error log
+        // Immediately return failure instead of using fallback
+        return { success: false, error: errorMsg }; 
+    }
+
+    // console.log(`[Frontend Embedding Trigger] Using API URL: ${apiUrl}`); // Removed debug log
+    const endpoint = `${apiUrl}/api/cursor-flows/${flowId}/generate-embedding`;
+    // console.log(`[Frontend Embedding Trigger] Fetching endpoint: ${endpoint}`); // Removed debug log
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // No body needed as flowId is in the URL path
+    });
+
+    // console.log(`[Frontend Embedding Trigger] Response status: ${response.status}`); // Removed debug log
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to parse error JSON' })); // Add catch for non-JSON errors
+      console.error(`[Frontend Embedding Trigger] Error response data:`, errorData); // Keep error log
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown server error'}`);
+    }
+
+    const result = await response.json();
+    
+    console.log(`[Embedding Trigger] Started generation for flow ${flowId}`); // Keep success log
+    return { 
+      success: true,
+      message: result.message || 'Embedding generation started successfully'
+    };
+  } catch (error) {
+    console.error(`[Embedding Trigger] Error triggering embedding generation for flow ${flowId}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
 }; 
