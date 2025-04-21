@@ -10,6 +10,7 @@ import { Alert } from "@/ui/components/Alert";
 import { TextField } from "@/ui/components/TextField";
 import { DropdownMenu } from "@/ui/components/DropdownMenu";
 import * as SubframeCore from "@subframe/core";
+import { TextArea } from "@/ui/components/TextArea";
 import { 
   getCursorFlowWithSteps, 
   updateStepAnnotation, 
@@ -20,7 +21,8 @@ import {
 import { 
   getBadgeVariantForStatus, 
   publishCursorFlow,
-  rollbackCursorFlow
+  rollbackCursorFlow,
+  updateCursorFlow
 } from "@/utils/cursorflows";
 import {
   hasValidScreenshot,
@@ -50,6 +52,9 @@ function CursorFlowPreviewContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stepTexts, setStepTexts] = useState<{[key: string]: string}>({});
+  const [flowDescription, setFlowDescription] = useState<string>('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editableFlowName, setEditableFlowName] = useState(flowName);
   const [showAlert, setShowAlert] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -97,6 +102,9 @@ function CursorFlowPreviewContent() {
         });
         setStepTexts(textMap);
       }
+      // Initialize flow description state
+      setFlowDescription(flowData?.description || '');
+      setEditableFlowName(flowData?.name || flowName);
     } catch (error) {
       console.error('Error loading cursor flow:', error);
       setError('An error occurred while loading the cursor flow');
@@ -111,6 +119,12 @@ function CursorFlowPreviewContent() {
       ...prev,
       [stepId]: text
     }));
+    setHasUnsavedChanges(true);
+  };
+
+  // Function to handle description changes
+  const handleDescriptionChange = (text: string) => {
+    setFlowDescription(text);
     setHasUnsavedChanges(true);
   };
 
@@ -222,9 +236,9 @@ function CursorFlowPreviewContent() {
     setDragStartPos(null);
   };
 
-  // Function to save changes to steps
+  // Function to save changes to steps, flow name, and description
   const saveChanges = async () => {
-    if (!flowId) return;
+    if (!flowId || !flow) return;
     
     setIsSaving(true);
     try {
@@ -232,17 +246,50 @@ function CursorFlowPreviewContent() {
       const updatedSteps = steps.map(step => ({
         ...step,
         annotation_text: stepTexts[step.id] || step.annotation_text,
-        // Position updates are already in the step_data
+        // Position updates are handled separately via handleEndDrag/saveCursorPosition for now
       }));
       
-      const { success, error: saveError } = await saveSteps(updatedSteps);
+      const { success: stepsSuccess, error: stepsError } = await saveSteps(updatedSteps);
       
-      if (!success) {
-        console.error('Failed to save steps:', saveError);
-        setError('Failed to save changes');
+      if (!stepsSuccess) {
+        console.error('Failed to save steps:', stepsError);
+        setError('Failed to save step changes');
+        setIsSaving(false);
         return;
       }
       
+      // Prepare updates for flow details (name and description)
+      const flowUpdates: { name?: string; description?: string | null } = {};
+      if (editableFlowName !== flow.name) {
+        flowUpdates.name = editableFlowName;
+      }
+      if (flowDescription !== flow.description) {
+        flowUpdates.description = flowDescription;
+      }
+
+      // Persist flow details if there are changes
+      if (Object.keys(flowUpdates).length > 0) {
+        const { success: flowUpdateSuccess, error: flowUpdateError } = await updateCursorFlow(flowId, flowUpdates);
+        if (!flowUpdateSuccess) {
+          console.error('Failed to update flow details:', flowUpdateError);
+          // Even if flow update fails, steps were saved. Maybe show partial success?
+          setError('Failed to save flow name/description changes');
+          setIsSaving(false);
+          return;
+        } else {
+          // Update local flow state if name changed
+          if (flowUpdates.name) {
+            setFlow((prev: any) => ({ ...prev, name: flowUpdates.name }));
+          }
+          // Potentially update description in local state too if needed immediately
+          if (flowUpdates.description !== undefined) {
+            setFlow((prev: any) => ({ ...prev, description: flowUpdates.description }));
+          }
+        }
+      } else {
+        // No flow details changes, steps were saved successfully
+      }
+       
       setHasUnsavedChanges(false);
       setSuccessMessage('Changes saved successfully');
       
@@ -325,6 +372,7 @@ function CursorFlowPreviewContent() {
       
       // Update local state
       setFlow((prev: any) => ({ ...prev, status: 'draft' }));
+      setEditableFlowName(flow?.name || flowName);
       setSuccessMessage('Flow rolled back to draft successfully');
       
       // Hide success message after 3 seconds
@@ -636,7 +684,7 @@ function CursorFlowPreviewContent() {
 
   return ( 
       <>
-      <div className="container max-w-none flex h-full w-full flex-col items-start gap-6 bg-default-background py-12">
+      <div className="container max-w-none flex h-full w-full flex-col items-start gap-6 bg-default-background pt-12">
         <div className="flex w-full flex-wrap items-center justify-between">
           <div className="flex grow shrink-0 basis-0 flex-col items-start gap-2">
             <Breadcrumbs>
@@ -648,15 +696,47 @@ function CursorFlowPreviewContent() {
                 {flowName}
               </Breadcrumbs.Item>
             </Breadcrumbs>
-            <div className="flex w-full items-center gap-2">
-              <span className="text-heading-2 font-heading-2 text-default-font">
-                {flowName}
-              </span>
+            <div 
+              className={`flex w-full items-center gap-2 ${flow?.status === 'draft' ? 'cursor-pointer' : ''}`}
+              onClick={() => {
+                if (flow?.status === 'draft' && !isEditingTitle) {
+                  setIsEditingTitle(true);
+                }
+              }}
+            >
+              {isEditingTitle && flow?.status === 'draft' ? (
+                <TextField className="grow shrink-0 basis-0">
+                  <TextField.Input 
+                    value={editableFlowName}
+                    onChange={(e) => {
+                      setEditableFlowName(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    onBlur={() => setIsEditingTitle(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsEditingTitle(false);
+                      } else if (e.key === 'Enter') {
+                        setIsEditingTitle(false);
+                      }
+                    }}
+                    autoFocus
+                    className="text-heading-2 font-heading-2"
+                  />
+                </TextField>
+              ) : (
+                <span className="text-heading-2 font-heading-2 text-default-font">
+                  {editableFlowName}
+                </span>
+              )}
               <Badge variant={getBadgeVariantForStatus(flow.status)}>
                 {flow.status.charAt(0).toUpperCase() + flow.status.slice(1)}
               </Badge>
             </div>
           </div>
+          
+          {/* Flow Description TextArea */}
+          
           
           <div className="flex items-center gap-2">
             {flow.status === 'draft' ? (
@@ -732,6 +812,29 @@ function CursorFlowPreviewContent() {
         )}
         
         <div className="flex w-full grow shrink-0 basis-0 flex-wrap items-start">
+          <div className="w-full pb-4">
+            <div className="flex w-full items-center justify-between border-b border-solid border-neutral-border py-3">
+                <span className="text-body-bold font-body-bold text-default-font">
+                  Description
+                </span>
+              </div>
+            <TextArea
+              className="w-full"
+            >
+              <TextArea.Input
+                placeholder="Enter flow description..."
+                value={flowDescription}
+                onChange={(e) => {
+                  if (flow.status === 'draft') {
+                    handleDescriptionChange(e.target.value);
+                  }
+                }}
+                disabled={flow.status !== 'draft'}
+                readOnly={flow.status !== 'draft'}
+                rows={3}
+              />
+            </TextArea>
+          </div>
           <div className="flex min-w-[576px] grow shrink-0 basis-0 flex-col items-start gap-6">
             {clickSteps.length === 0 ? (
               <div className="flex w-full items-center justify-center p-8 border border-dashed border-neutral-border rounded-md">

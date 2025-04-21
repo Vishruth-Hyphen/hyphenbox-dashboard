@@ -772,4 +772,30 @@ export const generateCursorFlowText = async (
 // Update the CursorFlow type to include audiences
 export interface CursorFlow extends BaseCursorFlow {
   audiences?: Array<{ id: string; name: string }>;
-} 
+}
+
+// Add a function to update cursor flow details like name and description
+export const updateCursorFlow = async (
+  flowId: string,
+  updates: { name?: string; description?: string | null }
+): Promise<{
+  success: boolean;
+  error?: any;
+}> => {
+  try {
+    const { error } = await supabase
+      .from('cursor_flows')
+      .update(updates)
+      .eq('id', flowId);
+
+    if (error) {
+      console.error('Error updating cursor flow details:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateCursorFlow:', error);
+    return { success: false, error };
+  }
+}; 
