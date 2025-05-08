@@ -10,6 +10,7 @@ export interface CursorFlowStepData {
   cursor_position_x?: number;
   cursor_position_y?: number;
   is_removed?: boolean;
+  is_highlight_step?: boolean;
   created_at: string;
   updated_at: string;
 }

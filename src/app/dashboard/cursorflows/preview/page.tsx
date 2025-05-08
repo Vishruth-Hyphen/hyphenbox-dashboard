@@ -11,6 +11,7 @@ import { TextField } from "@/ui/components/TextField";
 import { DropdownMenu } from "@/ui/components/DropdownMenu";
 import * as SubframeCore from "@subframe/core";
 import { TextArea } from "@/ui/components/TextArea";
+import { Switch } from "@/ui/components/Switch";
 import { 
   getCursorFlowWithSteps, 
   updateStepAnnotation, 
@@ -100,6 +101,10 @@ function CursorFlowPreviewContent() {
         const textMap: {[key: string]: string} = {};
         stepsData.forEach(step => {
           textMap[step.id] = step.annotation_text || '';
+          // Ensure is_highlight_step has a default value if not present
+          if (step.is_highlight_step === undefined) {
+            step.is_highlight_step = false;
+          }
         });
         setStepTexts(textMap);
       }
@@ -247,6 +252,7 @@ function CursorFlowPreviewContent() {
       const updatedSteps = steps.map(step => ({
         ...step,
         annotation_text: stepTexts[step.id] || step.annotation_text,
+        is_highlight_step: step.is_highlight_step === undefined ? false : step.is_highlight_step,
         // Position updates are handled separately via handleEndDrag/saveCursorPosition for now
       }));
       
@@ -656,6 +662,15 @@ function CursorFlowPreviewContent() {
     }
   };
 
+  const handleStepTypeChange = (stepId: string, isHighlight: boolean) => {
+    setSteps(prevSteps =>
+      prevSteps.map(step =>
+        step.id === stepId ? { ...step, is_highlight_step: isHighlight } : step
+      )
+    );
+    setHasUnsavedChanges(true);
+  };
+
   if (isLoading) {
     return (
       <>
@@ -862,6 +877,21 @@ function CursorFlowPreviewContent() {
                       <span className="text-body-bold font-body-bold text-default-font">
                         Step {index + 1}
                       </span>
+                      {/* Moved Toggle for Step Type Here - Always show, disable if not draft */} 
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium text-default-font mr-2">
+                          Highlight Step
+                        </span>
+                        <Switch
+                          checked={clickStep.is_highlight_step || false}
+                          onCheckedChange={flow.status === 'draft' 
+                            ? (checked) => handleStepTypeChange(clickStep.id, checked) 
+                            : undefined
+                          }
+                          disabled={flow.status !== 'draft'}
+                          className={flow.status !== 'draft' ? 'opacity-70 cursor-not-allowed' : ''}
+                        />
+                      </div>
                     </div>
                     <div className="flex w-full flex-col items-start rounded-md border border-solid border-neutral-border bg-default-background">
                       <div className="flex w-full items-center justify-between border-b border-solid border-neutral-border px-4 py-3">
