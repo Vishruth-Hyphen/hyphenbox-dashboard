@@ -407,6 +407,20 @@ function CursorFlowPreviewContent() {
     router.push('/dashboard/cursorflows');
   };
 
+  // Function to handle deleting a step (soft delete)
+  const handleDeleteStep = (stepId: string) => {
+    if (flow?.status !== 'draft') return;
+
+    if (window.confirm('Are you sure you want to delete this step? This change will be saved when you next click "Save Changes".')) {
+      setSteps(prevSteps =>
+        prevSteps.map(step =>
+          step.id === stepId ? { ...step, is_removed: true } : step
+        )
+      );
+      setHasUnsavedChanges(true);
+    }
+  };
+
   // Get only active steps - we don't care about removed steps anymore
   const activeSteps = steps.filter(step => !step.is_removed);
 
@@ -891,6 +905,15 @@ function CursorFlowPreviewContent() {
                           disabled={flow.status !== 'draft'}
                           className={flow.status !== 'draft' ? 'opacity-70 cursor-not-allowed' : ''}
                         />
+                        {flow.status === 'draft' && (
+                          <IconButton
+                            icon="FeatherTrash2"
+                            variant="destructive-secondary"
+                            onClick={() => handleDeleteStep(clickStep.id)}
+                            className="ml-3"
+                            aria-label="Delete step"
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="flex w-full flex-col items-start rounded-md border border-solid border-neutral-border bg-default-background">
