@@ -141,9 +141,12 @@ function Setup() {
         break;
       case "react":
         reactComp = `
-// 1. Define this component in your React app:
-function HyphenboxLoader({ apiKey }) {
-  React.useEffect(() => {
+// HyphenboxLoader.jsx
+import React, { useEffect } from 'react';
+
+// Hyphenbox integration component
+export default function HyphenboxLoader({ apiKey }) {
+  useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
@@ -163,7 +166,10 @@ function HyphenboxLoader({ apiKey }) {
   return null;
 }`;
         reactUse = `
-// 2. Use it in your app like this:
+// In your main App.jsx or where you want to initialize Hyphenbox:
+import HyphenboxLoader from './HyphenboxLoader';
+
+// Then use it in your component:
 <HyphenboxLoader apiKey="${key}" />`;
         setReactComponentSnippet(reactComp.trimStart());
         setReactUsageSnippet(reactUse.trimStart());
