@@ -131,8 +131,10 @@ function Setup() {
   src="https://hyphenbox-clientsdk.pages.dev/flow.js"
   strategy="afterInteractive"
   onLoad={() => {
-    window.hyphenbox &&
-      window.hyphenbox.init({ apiKey: '${key}' });
+    const cf = new window.CursorFlow({
+      apiKey: '${key}'
+    });
+    cf.init();
   }}
 />`;
         setCodeSnippet(nextJsSnippet.trimStart());
@@ -146,11 +148,16 @@ function HyphenboxLoader({ apiKey }) {
     script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
     script.onload = () => {
-      window.hyphenbox && window.hyphenbox.init({ apiKey });
+      const cf = new window.CursorFlow({
+        apiKey: apiKey
+      });
+      cf.init();
     };
     document.body.appendChild(script);
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, [apiKey]);
   return null;
@@ -166,9 +173,12 @@ function HyphenboxLoader({ apiKey }) {
         vanillaSnippet = `
 <script src="https://hyphenbox-clientsdk.pages.dev/flow.js"></script>
 <script>
-  var hbApiKey='${key}',hbInterval=setInterval(function(){
-  if(window.hyphenbox){clearInterval(hbInterval);
-  window.hyphenbox.init({apiKey:hbApiKey});}},100);
+  document.addEventListener('DOMContentLoaded', function() {
+    const cf = new window.CursorFlow({
+      apiKey: '${key}'
+    });
+    cf.init();
+  });
 </script>`;
         setCodeSnippet(vanillaSnippet.trimStart());
         break;
