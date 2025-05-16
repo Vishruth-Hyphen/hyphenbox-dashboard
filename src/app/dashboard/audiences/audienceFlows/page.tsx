@@ -31,6 +31,7 @@ import { Select } from "@/ui/components/Select";
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { copyToClipboard as copyUtil } from "@/utils/clipboardUtils";
 
 function AudienceFlowsContent() {
   const searchParams = useSearchParams();
@@ -54,7 +55,8 @@ function AudienceFlowsContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Add state for copy feedback
-  const [isCopied, setIsCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<{ text: string; isCopied: boolean }>({ text: '', isCopied: false });
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   // Add this state for storing flow audience info
   const [flowAudiences, setFlowAudiences] = useState<Record<string, string[]>>({});
@@ -259,11 +261,18 @@ function AudienceFlowsContent() {
   };
 
   // Add copy handler
-  const handleCopyId = () => {
+  const handleCopyId = async () => {
     if (audience?.id) {
-      navigator.clipboard.writeText(audience.id);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      try {
+        await copyUtil(audience.id);
+        setCopyStatus({ text: 'Copied!', isCopied: true });
+        setCopyError(null);
+        setTimeout(() => setCopyStatus({ text: '', isCopied: false }), 2000);
+      } catch (err) {
+        console.error("Failed to copy Audience ID:", err);
+        setCopyError("Failed to copy ID. Please try manually.");
+        setCopyStatus({ text: '', isCopied: false }); // Reset status on error
+      }
     }
   };
 
@@ -302,6 +311,21 @@ function AudienceFlowsContent() {
               </Button>
             </div>
           </div>
+        )}
+        
+        {/* Display copy error if any */}
+        {copyError && (
+          <Alert
+            title="Copy Error"
+            description={copyError}
+            variant="error"
+            actions={
+              <IconButton
+                icon="FeatherX"
+                onClick={() => setCopyError(null)}
+              />
+            }
+          />
         )}
         
         {successMessage && (
@@ -360,13 +384,13 @@ function AudienceFlowsContent() {
                 title="Copy ID to clipboard"
               >
                 <SubframeCore.Icon 
-                  name={isCopied ? "FeatherCheck" : "FeatherClipboard"} 
-                  className={`h-4 w-4 ${isCopied ? 'text-green-600' : 'text-gray-500'}`}
+                  name={copyStatus.isCopied ? "FeatherCheck" : "FeatherClipboard"} 
+                  className={`h-4 w-4 ${copyStatus.isCopied ? 'text-green-600' : 'text-gray-500'}`}
                 />
               </button>
-              {isCopied && (
+              {copyStatus.isCopied && (
                 <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-green-600 bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100">
-                  Copied!
+                  {copyStatus.text}
                 </span>
               )}
             </div>
