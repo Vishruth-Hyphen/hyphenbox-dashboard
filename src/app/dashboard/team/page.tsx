@@ -117,7 +117,7 @@ function TeamContent() {
     
     try {
       // Use the server API endpoint instead of directly using Supabase
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/team/invite`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/dashboard/team/invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

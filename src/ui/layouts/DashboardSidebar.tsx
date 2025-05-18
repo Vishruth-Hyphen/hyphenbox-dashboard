@@ -32,6 +32,7 @@ const navSections = [
     label: "Guide",
     items: [
       { label: "Cursor Flows", icon: "FeatherMousePointerClick", href: "/dashboard/cursorflows" },
+      { label: "Onboarding", icon: "FeatherPlayCircle", href: "/dashboard/onboarding" },
       { label: "Knowledge", icon: "FeatherBookOpen", href: "/dashboard/knowledge" },
       { label: "Audiences", icon: "FeatherUsers", href: "/dashboard/audiences" },
     ],

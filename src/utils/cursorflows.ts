@@ -741,15 +741,8 @@ export const generateCursorFlowText = async (
   error?: any;
 }> => {
   try {
-    // Fix the URL construction here
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hyphenbox-backend.onrender.com';
-    
-    const response = await fetch(`${apiUrl}/api/cursor-flows/generate-text`, {
+    const response = await fetch(`/api/dashboard/internal/cursorflows/${flowId}/generate-text`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ flowId }),
     });
 
     if (!response.ok) {
@@ -814,28 +807,9 @@ export const triggerEmbeddingGeneration = async (
 }> => {
   // console.log(`[Frontend Embedding Trigger] Attempting to trigger embedding for flow: ${flowId}`); // Removed debug log
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    // Explicit check for the environment variable
-    if (!apiUrl) {
-        const errorMsg = "[Frontend Embedding Trigger] Error: NEXT_PUBLIC_API_URL environment variable is not set or empty.";
-        console.error(errorMsg); // Keep error log
-        // Immediately return failure instead of using fallback
-        return { success: false, error: errorMsg }; 
-    }
-
-    // console.log(`[Frontend Embedding Trigger] Using API URL: ${apiUrl}`); // Removed debug log
-    const endpoint = `${apiUrl}/api/cursor-flows/${flowId}/generate-embedding`;
-    // console.log(`[Frontend Embedding Trigger] Fetching endpoint: ${endpoint}`); // Removed debug log
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(`/api/dashboard/internal/cursorflows/${flowId}/generate-embeddings`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // No body needed as flowId is in the URL path
     });
-
-    // console.log(`[Frontend Embedding Trigger] Response status: ${response.status}`); // Removed debug log
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to parse error JSON' })); // Add catch for non-JSON errors
