@@ -70,6 +70,9 @@ function Setup() {
   const [reactComponentSnippet, setReactComponentSnippet] = useState<string>("");
   const [reactUsageSnippet, setReactUsageSnippet] = useState<string>("");
 
+  const USER_ID_PLACEHOLDER = "YOUR_USER_ID";
+  const USER_NAME_PLACEHOLDER = "USER_DISPLAY_NAME"; // For optional user name
+
   const initialCopyButtonTexts: Record<CopyButtonKey, string> = {
     apiKey: "Copy Key",
     snippet: "Copy Snippet",
@@ -132,7 +135,10 @@ function Setup() {
   strategy="afterInteractive"
   onLoad={() => {
     const cf = new window.CursorFlow({
-      apiKey: '${key}'
+      apiKey: '${key}',
+      userId: '${USER_ID_PLACEHOLDER}', // REQUIRED: Replace with actual user ID from your auth system
+      userName: '${USER_NAME_PLACEHOLDER}', // OPTIONAL: User's display name
+      debug: true
     });
     cf.init();
   }}
@@ -145,14 +151,17 @@ function Setup() {
 import React, { useEffect } from 'react';
 
 // Hyphenbox integration component
-export default function HyphenboxLoader({ apiKey }) {
+export default function HyphenboxLoader({ apiKey, userId, userName }) {
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
     script.onload = () => {
       const cf = new window.CursorFlow({
-        apiKey: apiKey
+        apiKey: apiKey,
+        userId: userId, // REQUIRED: User ID from your authentication system
+        userName: userName, // OPTIONAL: User's display name
+        debug: true
       });
       cf.init();
     };
@@ -162,7 +171,7 @@ export default function HyphenboxLoader({ apiKey }) {
         document.body.removeChild(script);
       }
     };
-  }, [apiKey]);
+  }, [apiKey, userId, userName]);
   return null;
 }`;
         reactUse = `
@@ -170,7 +179,11 @@ export default function HyphenboxLoader({ apiKey }) {
 import HyphenboxLoader from './HyphenboxLoader';
 
 // Then use it in your component:
-<HyphenboxLoader apiKey="${key}" />`;
+<HyphenboxLoader 
+  apiKey="${key}" 
+  userId="${USER_ID_PLACEHOLDER}" // REQUIRED: Replace with actual user ID from your auth system
+  userName="${USER_NAME_PLACEHOLDER}" // OPTIONAL: User's display name
+/>`;
         setReactComponentSnippet(reactComp.trimStart());
         setReactUsageSnippet(reactUse.trimStart());
         break;
@@ -181,7 +194,10 @@ import HyphenboxLoader from './HyphenboxLoader';
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const cf = new window.CursorFlow({
-      apiKey: '${key}'
+      apiKey: '${key}',
+      userId: '${USER_ID_PLACEHOLDER}', // REQUIRED: Replace with actual user ID from your auth system
+      userName: '${USER_NAME_PLACEHOLDER}', // OPTIONAL: User's display name
+      debug: true
     });
     cf.init();
   });
@@ -189,14 +205,14 @@ import HyphenboxLoader from './HyphenboxLoader';
         setCodeSnippet(vanillaSnippet.trimStart());
         break;
     }
-  }, []);
+  }, []); // Remove userId and userName from dependencies
 
   const fetchSdkApiKey = useCallback(async () => {
     if (!organizationId || !API_BASE_URL) return;
     setIsLoadingSdkKey(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/organizations/${organizationId}/sdk-key`);
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/organizations/${organizationId}/sdk-key`);
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || `Failed to fetch SDK key (${response.status})`);
@@ -218,7 +234,7 @@ import HyphenboxLoader from './HyphenboxLoader';
     setIsLoadingSdkKey(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/organizations/${organizationId}/sdk-key`, { method: "POST" });
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/organizations/${organizationId}/sdk-key`, { method: "POST" });
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || `Failed to generate SDK key (${response.status})`);
@@ -239,7 +255,7 @@ import HyphenboxLoader from './HyphenboxLoader';
     setIsLoadingSegmentSecret(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/organizations/${organizationId}/segment-webhook-secret`);
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/organizations/${organizationId}/segment-webhook-secret`);
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || `Failed to fetch Segment secret (${response.status})`);
@@ -261,7 +277,7 @@ import HyphenboxLoader from './HyphenboxLoader';
     setError(null);
     setShowSegmentSecret(false);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/organizations/${organizationId}/segment-webhook-secret`, { method: "POST" });
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/organizations/${organizationId}/segment-webhook-secret`, { method: "POST" });
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || `Failed to generate Segment secret (${response.status})`);
@@ -390,7 +406,10 @@ import HyphenboxLoader from './HyphenboxLoader';
           
           <div className="w-full space-y-2 mt-4">
             <label className="block text-sm font-medium text-gray-700">Installation Snippet:</label>
-            <p className="text-sm text-gray-600">Copy and paste this snippet into your application, following the instructions for your chosen framework.</p>
+            <p className="text-sm text-gray-600">
+              Copy and paste this snippet into your application, following the instructions for your chosen framework.
+              <span className="font-semibold text-blue-600 block mt-1">Important: The userId parameter is now required for Hyphenbox to work properly. Replace the placeholder values with actual user IDs from your authentication system.</span>
+            </p>
             
             {/* Framework Selection Tabs */}
             <div className="flex border-b border-gray-300 mb-2">
@@ -423,7 +442,7 @@ import HyphenboxLoader from './HyphenboxLoader';
                       >
                         <SubframeCore.Icon
                           name={copyButtonStates['snippetReactComponent']?.isCopied ? "FeatherCheck" : "FeatherClipboard"}
-                          className={`h-4 w-4 ${copyButtonStates['snippetReactComponent']?.isCopied ? 'text-green-400' : 'text-gray-300'}`}
+                          className={`${copyButtonStates['snippetReactComponent']?.isCopied ? 'text-green-400' : 'text-gray-300'}`}
                         />
                       </button>
                       {copyButtonStates['snippetReactComponent']?.isCopied && (
