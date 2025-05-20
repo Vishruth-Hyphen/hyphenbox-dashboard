@@ -33,7 +33,14 @@ export default function DashboardLayout({
   // Render the DashboardSidebar and children only if authenticated
   return session ? (
     <DashboardSidebar>
-      {/* <HyphenBox /> */}
+      {/* Only render HyphenBox if we have a valid userId */}
+      {session.user?.id && (
+        <HyphenBox 
+          apiKey="hbk_live_d0785df00e7e6fea6eb40887502a1166efbc394bca9cb3aa"
+          userId={session.user.id}
+          userName={session.user.email}
+        />
+      )}
       {children}
     </DashboardSidebar>
   ) : null;

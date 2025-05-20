@@ -94,6 +94,7 @@ export async function getOnboardingChecklistWithFlows(checklistId: string): Prom
   if (!checklistId) return { checklist: null, flows: null, error: 'Checklist ID is required' };
 
   try {
+    // 1. First, get the checklist data
     const { data: checklistData, error: checklistError } = await supabase
       .from('onboarding_checklists')
       .select('*')
@@ -103,6 +104,7 @@ export async function getOnboardingChecklistWithFlows(checklistId: string): Prom
     if (checklistError) throw checklistError;
     if (!checklistData) return { checklist: null, flows: null, error: 'Checklist not found' };
 
+    // 2. Then get the checklist flows with proper foreign key relationship
     const { data: checklistFlowsData, error: flowsError } = await supabase
       .from('onboarding_checklist_flows')
       .select(`
@@ -110,23 +112,30 @@ export async function getOnboardingChecklistWithFlows(checklistId: string): Prom
         checklist_id,
         flow_id,
         position,
-        cursor_flows (id, name, status)
+        cursor_flows!flow_id (id, name, status)
       `)
       .eq('checklist_id', checklistId)
       .order('position', { ascending: true });
 
     if (flowsError) throw flowsError;
 
-    // Ensure the casting matches the (potentially array) type of cursor_flows from Supabase
-    const processedFlows = checklistFlowsData.map(item => ({
-      ...item,
-      // Assuming item.cursor_flows from Supabase is already an array or null/undefined
-      cursor_flows: (item.cursor_flows || []) as Pick<CursorFlow, 'id' | 'name' | 'status'>[]
-    }));
+    // 3. Process the data, ensuring proper type handling
+    const processedFlows = checklistFlowsData.map(item => {
+      // Make sure cursor_flows is treated as an array even when it's a single object
+      let flowsArray = item.cursor_flows;
+      if (flowsArray && !Array.isArray(flowsArray)) {
+        flowsArray = [flowsArray];
+      }
+      
+      return {
+        ...item,
+        cursor_flows: (flowsArray || []) as Pick<CursorFlow, 'id' | 'name' | 'status'>[]
+      };
+    });
 
     return { 
         checklist: checklistData as OnboardingChecklist, 
-        flows: processedFlows as unknown as OnboardingChecklistFlowItem[], // Cast with unknown due to mapping complexity 
+        flows: processedFlows as OnboardingChecklistFlowItem[], 
         error: null 
     };
   } catch (error) {

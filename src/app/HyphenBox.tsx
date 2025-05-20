@@ -1,30 +1,53 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 
-export default function HyphenBox() {
+// Declare global type for Hyphenbox on the window object
+declare global {
+  interface Window {
+    Hyphenbox: {
+      initialize: (config: {
+        apiKey: string;
+        userId: string; // Must be provided
+        userName?: string; // Optional
+        debug?: boolean;
+      }) => void;
+    };
+  }
+}
+
+interface HyphenBoxProps {
+  apiKey: string;
+  userId: string; // Required - must be a valid string
+  userName?: string; // Optional
+}
+
+export default function HyphenBox({ apiKey, userId, userName }: HyphenBoxProps) {
+  // Validate userId is provided
+  if (!userId) {
+    console.error('HyphenBox requires a userId to function properly');
+    return null;
+  }
+
   useEffect(() => {
-    // Load the script
     const script = document.createElement('script');
     script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
-    
-    // Initialize CursorFlow when script loads
     script.onload = () => {
-      const cf = new (window as any).CursorFlow({
-        organizationId: '7f296453-3705-46c6-8c7b-5901b3e76cae',
-        debug: true // Enable debug logging
+      window.Hyphenbox.initialize({
+        apiKey,
+        userId, // REQUIRED: User ID from your authentication system
+        userName, // OPTIONAL: User's display name
+        debug: true
       });
-      cf.init();
+      // Button will automatically appear in the bottom right
     };
+    document.body.appendChild(script);
     
-    document.body.appendChild(script);  
-    
-    // Simple cleanup - just remove the script
     return () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
     };
-  }, []); // Remove userContext dependency
+  }, [apiKey, userId, userName]);
   
   return null;
 }

@@ -134,56 +134,37 @@ function Setup() {
   src="https://hyphenbox-clientsdk.pages.dev/flow.js"
   strategy="afterInteractive"
   onLoad={() => {
-    const cf = new window.CursorFlow({
+    window.Hyphenbox.initialize({
       apiKey: '${key}',
       userId: '${USER_ID_PLACEHOLDER}', // REQUIRED: Replace with actual user ID from your auth system
       userName: '${USER_NAME_PLACEHOLDER}', // OPTIONAL: User's display name
       debug: true
     });
-    cf.init();
+    // Button will automatically appear in the bottom right
   }}
 />`;
         setCodeSnippet(nextJsSnippet.trimStart());
         break;
       case "react":
         reactComp = `
-// HyphenboxLoader.jsx
 import React, { useEffect } from 'react';
 
-// Hyphenbox integration component
-export default function HyphenboxLoader({ apiKey, userId, userName }) {
+export default function HyphenBox({ apiKey, userId, userName }) {
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
     script.onload = () => {
-      const cf = new window.CursorFlow({
-        apiKey: apiKey,
-        userId: userId, // REQUIRED: User ID from your authentication system
-        userName: userName, // OPTIONAL: User's display name
-        debug: true
-      });
-      cf.init();
+      window.Hyphenbox.initialize({ apiKey, userId, userName, debug: true });
     };
     document.body.appendChild(script);
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
+    return () => { if (document.body.contains(script)) document.body.removeChild(script); };
   }, [apiKey, userId, userName]);
   return null;
 }`;
         reactUse = `
-// In your main App.jsx or where you want to initialize Hyphenbox:
-import HyphenboxLoader from './HyphenboxLoader';
-
-// Then use it in your component:
-<HyphenboxLoader 
-  apiKey="${key}" 
-  userId="${USER_ID_PLACEHOLDER}" // REQUIRED: Replace with actual user ID from your auth system
-  userName="${USER_NAME_PLACEHOLDER}" // OPTIONAL: User's display name
-/>`;
+import HyphenBox from '@/app/HyphenBox';
+<HyphenBox apiKey="${key}" userId="${USER_ID_PLACEHOLDER}" userName="${USER_NAME_PLACEHOLDER}" />`;
         setReactComponentSnippet(reactComp.trimStart());
         setReactUsageSnippet(reactUse.trimStart());
         break;
@@ -193,13 +174,13 @@ import HyphenboxLoader from './HyphenboxLoader';
 <script src="https://hyphenbox-clientsdk.pages.dev/flow.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const cf = new window.CursorFlow({
+    window.Hyphenbox.initialize({
       apiKey: '${key}',
       userId: '${USER_ID_PLACEHOLDER}', // REQUIRED: Replace with actual user ID from your auth system
       userName: '${USER_NAME_PLACEHOLDER}', // OPTIONAL: User's display name
       debug: true
     });
-    cf.init();
+    // Button will automatically appear in the bottom right
   });
 </script>`;
         setCodeSnippet(vanillaSnippet.trimStart());
