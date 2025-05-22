@@ -35,8 +35,8 @@ export default function DashboardLayout({
     <DashboardSidebar>
       {/* Only render HyphenBox if we have a valid userId */}
       {session.user?.id && (
-        <HyphenBox 
-          apiKey="hbk_live_d0785df00e7e6fea6eb40887502a1166efbc394bca9cb3aa"
+        <HyphenBox
+          apiKey={process.env.NEXT_PUBLIC_HYPHENBOX_API_KEY || ""}
           userId={session.user.id}
           userName={session.user.email}
         />

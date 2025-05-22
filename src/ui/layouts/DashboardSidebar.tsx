@@ -52,6 +52,20 @@ const navSections = [
   },
 ];
 
+const customNavItems = [
+  {
+    label: "Get Started",
+    icon: "FeatherPlay" as SubframeCore.IconName, 
+    action: () => {
+      if (window.hyphenSDKInstance && window.hyphenSDKInstance.onboarding) {
+        window.hyphenSDKInstance.onboarding.show();
+      } else {
+        console.warn("Hyphen SDK not ready or onboarding module unavailable.");
+      }
+    },
+  },
+];
+
 
 const DashboardSidebarRoot = React.forwardRef<
   HTMLElement,
@@ -216,6 +230,22 @@ const DashboardSidebarRoot = React.forwardRef<
             ))}
           </SidebarWithSections.NavSection>
         ))}
+        {/* Custom "Get Started" Button */}
+        <SidebarWithSections.NavSection>
+          {customNavItems.map((item) => (
+            <SidebarWithSections.NavItem
+              key={item.label}
+              icon={item.icon}
+              onClick={item.action} // Use onClick for the action
+              // Treat as a button; you might need to adjust styling or use a different component
+              // if SidebarWithSections.NavItem doesn't inherently support button-like behavior well.
+              // For now, this assumes onClick is sufficient or the component handles it.
+              className="cursor-pointer" // Explicitly make it look clickable
+            >
+              {item.label}
+            </SidebarWithSections.NavItem>
+          ))}
+        </SidebarWithSections.NavSection>
       </SidebarWithSections>
 
       {/* Main Content Area */}
