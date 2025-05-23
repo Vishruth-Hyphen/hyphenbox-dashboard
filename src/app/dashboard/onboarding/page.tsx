@@ -35,37 +35,98 @@ const OnboardingWidgetPreview: React.FC<{
   flows: OnboardingChecklistFlowItem[];
 }> = ({ heading, description, logoUrl, flows }) => {
   return (
-    <div className="w-full max-w-md mx-auto border border-gray-300 rounded-lg shadow-lg p-6 bg-gray-800 text-white">
-      <div className="flex justify-between items-start mb-4">
+    <div 
+      className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden"
+      style={{
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        boxShadow: '0 5px 20px rgba(0, 0, 0, 0.15)'
+      }}
+    >
+      {/* Header */}
+      <div 
+        className="flex justify-between items-center px-6 py-4 border-b"
+        style={{ borderColor: '#e0e0e0' }}
+      >
         {logoUrl ? (
-          <img src={logoUrl} alt="Logo" className="h-10 rounded-md" />
+          <img src={logoUrl} alt="Logo" className="h-6 rounded" />
         ) : (
-          <div className="h-10 w-20 bg-gray-700 rounded-md flex items-center justify-center text-sm">Logo</div>
+          <div className="h-6 w-16 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">Logo</div>
         )}
-        <SubframeCore.Icon name="FeatherX" className="text-gray-400 cursor-pointer" />
-      </div>
-      <h2 className="text-2xl font-semibold mb-2">{heading || "Welcome!"}</h2>
-      <p className="text-sm text-gray-300 mb-6">{description || "Let's do a tour!"}</p>
-      
-      <div className="space-y-3">
-        {flows.map((flowItem, index) => (
-          <div key={flowItem.flow_id || 'flow-' + index} className="flex items-center p-3 bg-gray-700 rounded-md">
-            <SubframeCore.Icon 
-              name={index < 0 ? "FeatherCheckCircle" : "FeatherCircle"}
-              className={`mr-3 ${index < 0 ? "text-green-400" : "text-gray-400"}`} 
-            />
-            <span className="text-sm">{flowItem.cursor_flows?.[0]?.name || 'Flow name missing'}</span>
-          </div>
-        ))}
-        {flows.length === 0 && <p className="text-sm text-gray-400">No flows added yet.</p>}
+        <h2 
+          className="text-xl font-semibold flex-grow text-center mx-2"
+          style={{ color: '#1a1a1a' }}
+        >
+          {heading || "Welcome!"}
+        </h2>
+        <SubframeCore.Icon name="FeatherX" className="text-gray-400 cursor-pointer" style={{ fontSize: '24px' }} />
       </div>
 
-      <Button 
-        variant="brand-primary" 
-        className="w-full mt-8 bg-teal-500 hover:bg-teal-600 text-white"
+      {/* Content */}
+      <div className="px-6 py-4">
+        {/* Description */}
+        {description && (
+          <p 
+            className="text-sm mb-4 leading-relaxed"
+            style={{ color: '#666' }}
+          >
+            {description}
+          </p>
+        )}
+        
+        {/* Flows */}
+        <div 
+          className="border rounded-lg overflow-hidden"
+          style={{ borderColor: '#e0e0e0' }}
+        >
+          {flows.length > 0 ? (
+            flows.map((flowItem, index) => (
+              <div 
+                key={flowItem.flow_id || 'flow-' + index} 
+                className={`flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${index < flows.length - 1 ? 'border-b' : ''}`}
+                style={{ 
+                  borderColor: index < flows.length - 1 ? '#f0f0f0' : 'transparent'
+                }}
+              >
+                {/* Circular checkbox */}
+                <div 
+                  className="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 flex-shrink-0"
+                  style={{ 
+                    borderColor: index < 0 ? '#28a745' : '#dee2e6',
+                    backgroundColor: index < 0 ? '#28a745' : 'transparent'
+                  }}
+                >
+                  {index < 0 && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4.5 8.25L2.25 6L1.5 6.75L4.5 9.75L10.5 3.75L9.75 3L4.5 8.25Z" fill="white"/>
+                    </svg>
+                  )}
+                </div>
+                <span 
+                  className="text-sm font-medium"
+                  style={{ color: '#333' }}
+                >
+                  {flowItem.cursor_flows?.[0]?.name || 'Flow name missing'}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="px-4 py-6 text-center">
+              <p className="text-sm text-gray-500 italic">No steps in this checklist yet.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div 
+        className="px-6 py-4 border-t flex justify-end"
+        style={{ borderColor: '#f0f0f0' }}
       >
-        Start next step
-      </Button>
+        <div className="flex items-center gap-1 text-xs" style={{ color: '#666' }}>
+          <span style={{ opacity: 0.7 }}>powered by</span>
+          <div className="h-4 w-12 bg-gray-300 rounded opacity-70"></div>
+        </div>
+      </div>
     </div>
   );
 };
