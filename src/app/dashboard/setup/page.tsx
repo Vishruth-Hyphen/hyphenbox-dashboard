@@ -296,7 +296,7 @@ export default function Layout({ children }) {
             <p className="text-sm text-gray-600 mt-1">Import and use the <code className="bg-gray-200 px-1 rounded">HyphenBox</code> component in your main application file (e.g., <code className="bg-gray-200 px-1 rounded">App.tsx</code> or <code className="bg-gray-200 px-1 rounded">App.js</code>).</p>
 
             <p className="text-sm text-gray-600 mt-4"><strong>Option 1: Default Launcher</strong> (Recommended for easy setup)</p>
-            <p className="text-sm text-gray-600">Set <code className="bg-gray-200 px-1 rounded">useDefaultLauncher={true}</code> (or omit it, as it defaults to true). This will automatically display a "Help & Guides" button in your app, giving users access to onboarding and other guides.</p>
+            <p className="text-sm text-gray-600">Set <code className="bg-gray-200 px-1 rounded">useDefaultLauncher={true}</code> (or omit it, as it defaults to true). This will automatically display a &quot;Help & Guides&quot; button in your app, giving users access to onboarding and other guides.</p>
             <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
               <pre className="overflow-x-auto"><code>{usageWithDefaultLauncher}</code></pre>
               <button
@@ -335,7 +335,7 @@ export default function Layout({ children }) {
         <div className="flex w-full flex-col items-start gap-6 p-6 border border-neutral-200 rounded-lg bg-green-50">
           <div className="flex items-center gap-3">
             <IconWithBackground icon="FeatherPartyPopper" className="bg-green-100 text-green-600" />
-            <h2 className="text-heading-3 font-heading-3 text-default-font">You're All Set!</h2>
+            <h2 className="text-heading-3 font-heading-3 text-default-font">You&apos;re All Set!</h2>
           </div>
           
           <div className="space-y-4">
@@ -343,7 +343,7 @@ export default function Layout({ children }) {
               Your Hyphenbox onboarding is now integrated into your React application.
             </p>
             <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-              <li>If you chose <strong>Option 1 (Default Launcher)</strong>, the "Help & Guides" button will appear automatically.</li>
+              <li>If you chose <strong>Option 1 (Default Launcher)</strong>, the &quot;Help & Guides&quot; button will appear automatically.</li>
               <li>If you chose <strong>Option 2 (Manual Control)</strong>, you can now trigger onboarding from any part of your application using your custom UI and the <code className="bg-gray-200 px-1 rounded text-black">window.hyphenSDKInstance.onboarding.show()</code> call.</li>
             </ul>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
