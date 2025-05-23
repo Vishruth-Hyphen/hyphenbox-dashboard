@@ -34,12 +34,45 @@ const Button: React.FC<ButtonProps> = ({ onClick, children, disabled = false, va
   );
 };
 
+interface ToggleProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  description: string;
+}
+
+const Toggle: React.FC<ToggleProps> = ({ checked, onChange, label, description }) => {
+  return (
+    <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg bg-white">
+      <div className="flex items-center h-5">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+        />
+      </div>
+      <div className="flex-1">
+        <label className="text-sm font-medium text-gray-900 cursor-pointer" onClick={() => onChange(!checked)}>
+          {label}
+        </label>
+        <p className="text-sm text-gray-500 mt-1">{description}</p>
+      </div>
+    </div>
+  );
+};
+
 function Setup() {
   const { currentOrgId } = useOrganization();
   const [sdkApiKey, setSdkApiKey] = useState<string | null>(null);
   const [isLoadingSdkKey, setIsLoadingSdkKey] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
+
+  // User preferences
+  const [useDefaultButton, setUseDefaultButton] = useState(false);
+  const [needManualOnboarding, setNeedManualOnboarding] = useState(true);
+  const [needOtherFeatures, setNeedOtherFeatures] = useState(false);
 
   const handleCopyToClipboard = async (text: string, key: string) => {
     if (!text) return;
@@ -113,108 +146,190 @@ function Setup() {
     );
   }
 
-  const reactComponentCode = `import React, { useEffect } from 'react';
+  // Generate code snippets based on user preferences
+  const getReactComponentCode = () => {
+    return `import React, { useEffect } from 'react';
 
-export default function HyphenBox({ apiKey, userId, userName, useDefaultLauncher = true }) {
+export default function HyphenBox({ apiKey, userId, userName }) {
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
     script.onload = () => {
       window.hyphenSDKInstance = window.Hyphenbox.initialize({
-        apiKey, userId, userName, useDefaultLauncher
+        apiKey,
+        userId,
+        userName,
+        useDefaultLauncher: ${useDefaultButton}
       });
     };
     document.body.appendChild(script);
     return () => document.body.removeChild(script);
-  }, [apiKey, userId, userName, useDefaultLauncher]);
+  }, [apiKey, userId, userName]);
+  
   return null;
 }`;
+  };
 
-  const usageWithDefaultLauncher = `import HyphenBox from './HyphenBox';
+  const getAppUsageCode = () => {
+    return `import HyphenBox from './your-component-path/HyphenBox';
 
 function App() {
   return (
     <div>
-      {/* Option 1: Shows "Help & Guides" button automatically */}
+      {/* Load HyphenBox once - it works across your entire app */}
       <HyphenBox 
         apiKey="${sdkApiKey || 'YOUR_API_KEY'}" 
         userId="user123" 
         userName="John Doe" 
-        useDefaultLauncher={true}
       />
       
-      {/* Your app content - button appears automatically! */}
+      {/* Your app content */}
       <main>
-        <h1>Welcome! Look for the Help & Guides button.</h1>
+        <YourComponents />
       </main>
     </div>
   );
 }`;
-
-  const usageWithManualControl = `import HyphenBox from './HyphenBox';
-
-function App() {
-  const handleStartOnboarding = () => {
-    // Manual control - trigger onboarding anywhere!
-    window.hyphenSDKInstance?.onboarding?.show();
   };
+
+  const getManualTriggerCode = () => {
+    if (!needManualOnboarding && !needOtherFeatures) return '';
+
+    let code = `// Use these functions in ANY component (Navbar, Sidebar, Dashboard, etc.)
+
+// In your Navbar.tsx, Sidebar.tsx, or any component:
+import React from 'react';
+
+export default function YourComponent() {`;
+
+    if (needManualOnboarding) {
+      code += `
+  const startOnboarding = () => {
+    window.hyphenSDKInstance?.onboarding?.show();
+  };`;
+    }
+
+    if (needOtherFeatures) {
+      code += `
+  
+  const showAllGuides = () => {
+    window.hyphenSDKInstance?.guides?.show();
+  };`;
+    }
+
+    code += `
 
   return (
     <div>
-      {/* Option 2: No default button, you control when to show */}
-      <HyphenBox 
-        apiKey="${sdkApiKey || 'YOUR_API_KEY'}" 
-        userId="user123" 
-        userName="John Doe" 
-        useDefaultLauncher={false}
-      />
+      {/* Your existing component content */}`;
+
+    if (needManualOnboarding) {
+      code += `
       
-      {/* Your custom button wherever you want it */}
-      <nav>
-        <button onClick={handleStartOnboarding}>
-          Get Started with Onboarding
-        </button>
-      </nav>
+      <button onClick={startOnboarding}>
+        🚀 Start Onboarding
+      </button>`;
+    }
+
+    if (needOtherFeatures) {
+      code += `
+      
+      <button onClick={showAllGuides}>
+        📚 Help & Guides
+      </button>`;
+    }
+
+    code += `
     </div>
   );
 }`;
 
-  const nextjsCode = `import Script from 'next/script';
+    return code;
+  };
 
-export default function Layout({ children }) {
-  return (
-    <>
-      <Script
-        src="https://hyphenbox-clientsdk.pages.dev/flow.js"
-        onLoad={() => {
-          window.hyphenSDKInstance = window.Hyphenbox.initialize({
-            apiKey: '${sdkApiKey || 'YOUR_API_KEY'}',
-            userId: 'user123',
-            userName: 'John Doe',
-            useDefaultLauncher: true // Shows "Help & Guides" button automatically
-          });
-        }}
-      />
-      {children}
-    </>
-  );
-}`;
+  const getCursorPrompt = () => {
+    let prompt = `I need to add HyphenBox onboarding to my React app. Here's what I want to implement:
 
-  const vanillaCode = `<script src="https://hyphenbox-clientsdk.pages.dev/flow.js"></script>
-<script>
-  window.hyphenSDKInstance = window.Hyphenbox.initialize({
-    apiKey: '${sdkApiKey || 'YOUR_API_KEY'}',
-    userId: 'user123',
-    userName: 'John Doe',
-    useDefaultLauncher: true // Shows "Help & Guides" button automatically
-  });
-</script>
+## Goal
+Add interactive user onboarding to my React application using HyphenBox SDK.
 
-<!-- For manual control, set useDefaultLauncher: false and use: -->
-<button onclick="window.hyphenSDKInstance.onboarding.show()">
-  Start Onboarding
-</button>`;
+## Setup Requirements
+- API Key: ${sdkApiKey || 'YOUR_API_KEY'}
+- SDK URL: https://hyphenbox-clientsdk.pages.dev/flow.js`;
+
+    if (useDefaultButton) {
+      prompt += `
+- Show automatic "Help & Guides" floating button`;
+    }
+    if (needManualOnboarding) {
+      prompt += `
+- Add manual onboarding triggers from custom buttons`;
+    }
+    if (needOtherFeatures) {
+      prompt += `
+- Add manual access to all guides/help content`;
+    }
+
+    prompt += `
+
+## Implementation
+
+### 1. HyphenBox Component
+Create this reusable component and place it wherever you keep components in your project:
+
+\`\`\`tsx
+${getReactComponentCode()}
+\`\`\`
+
+### 2. Load Globally  
+Add this to your root App.js, layout, or wherever you want it loaded on all pages:
+
+\`\`\`tsx
+${getAppUsageCode()}
+\`\`\`
+
+**CRITICAL: Replace "user123" and "John Doe" with real user data from your authentication system. The userId should be unique per user for proper tracking.**`;
+
+    if (needManualOnboarding || needOtherFeatures) {
+      prompt += `
+
+### 3. Custom Triggers
+Attach these functions to your custom buttons, navigation, or anywhere you want manual control:
+
+\`\`\`tsx
+${getManualTriggerCode()}
+\`\`\``;
+    }
+
+    prompt += `
+
+## Expected Behavior`;
+    if (useDefaultButton) {
+      prompt += `
+- A floating "Help & Guides" button will appear automatically on all pages`;
+    }
+    if (needManualOnboarding) {
+      prompt += `
+- Custom buttons can trigger onboarding flows using startOnboarding()`;
+    }
+    if (needOtherFeatures) {
+      prompt += `
+- Custom buttons can open the full help center using showAllGuides()`;
+    }
+
+    prompt += `
+
+## Notes
+- The HyphenBox component loads the SDK once and makes it available globally
+- Manual trigger functions work from any component in your app  
+- Replace placeholder user data with real values from your auth system
+- The SDK will track user progress through onboarding flows
+
+Please help me implement this properly in my React application following my project structure.`;
+
+    return prompt;
+  };
 
   return (
     <div className="container max-w-none flex h-full w-full flex-col items-center gap-8 bg-default-background py-12 px-4 md:px-8">
@@ -222,10 +337,10 @@ export default function Layout({ children }) {
         {/* Header */}
         <div className="flex w-full flex-col items-start">
           <span className="text-heading-2 font-heading-2 text-default-font">
-            React Onboarding Setup
+            Add Onboarding to Your React App
           </span>
           <span className="text-body font-body text-subtext-color">
-            Add interactive onboarding to your React app in 2 simple steps.
+            Get your users started with interactive onboarding in just 2 steps.
           </span>
         </div>
 
@@ -268,90 +383,164 @@ export default function Layout({ children }) {
           </div>
         </div>
 
-        {/* Step 2: Choose Your Framework */}
+        {/* Step 2: Choose Your Setup */}
         <div className="flex w-full flex-col items-start gap-6 p-6 border border-neutral-200 rounded-lg">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-semibold">2</div>
-            <h2 className="text-heading-3 font-heading-3 text-default-font">Add to Your React App</h2>
+            <h2 className="text-heading-3 font-heading-3 text-default-font">Choose Your Setup</h2>
           </div>
 
-          {/* React */}
+          <p className="text-sm text-gray-600">Tell us what you need and we'll generate the perfect code for you:</p>
+
           <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-gray-800">a. Create the HyphenBox Component</h3>
-            <p className="text-sm text-gray-600">Create a file named <code className="bg-gray-200 px-1 rounded">HyphenBox.tsx</code> (or <code className="bg-gray-200 px-1 rounded">.js</code>) in your project, typically in a <code className="bg-gray-200 px-1 rounded">components</code> folder, with the following code:</p>
-            <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
-              <pre className="overflow-x-auto"><code>{reactComponentCode}</code></pre>
-              <button
-                onClick={() => handleCopyToClipboard(reactComponentCode, 'reactComponent')}
-                className="absolute top-2 right-2 p-2 rounded-md bg-gray-700 hover:bg-gray-600"
-              >
-                <SubframeCore.Icon
-                  name={copiedStates['reactComponent'] ? "FeatherCheck" : "FeatherClipboard"}
-                  className={`h-4 w-4 ${copiedStates['reactComponent'] ? 'text-green-400' : 'text-gray-300'}`}
-                />
-              </button>
-            </div>
+            <Toggle
+              checked={useDefaultButton}
+              onChange={setUseDefaultButton}
+              label="🎯 Show automatic 'Help & Guides' button"
+              description="We'll add a floating button to your app automatically. Users can click it to access onboarding and guides."
+            />
             
-            <h3 className="text-lg font-semibold text-gray-800 mt-6">b. Use the Component</h3>
-            <p className="text-sm text-gray-600 mt-1">Import and use the <code className="bg-gray-200 px-1 rounded">HyphenBox</code> component in your main application file (e.g., <code className="bg-gray-200 px-1 rounded">App.tsx</code> or <code className="bg-gray-200 px-1 rounded">App.js</code>).</p>
-
-            <p className="text-sm text-gray-600 mt-4"><strong>Option 1: Default Launcher</strong> (Recommended for easy setup)</p>
-            <p className="text-sm text-gray-600">Set <code className="bg-gray-200 px-1 rounded">useDefaultLauncher={true}</code> (or omit it, as it defaults to true). This will automatically display a &quot;Help & Guides&quot; button in your app, giving users access to onboarding and other guides.</p>
-            <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
-              <pre className="overflow-x-auto"><code>{usageWithDefaultLauncher}</code></pre>
-              <button
-                onClick={() => handleCopyToClipboard(usageWithDefaultLauncher, 'usageWithDefaultLauncher')}
-                className="absolute top-2 right-2 p-2 rounded-md bg-gray-700 hover:bg-gray-600"
-              >
-                <SubframeCore.Icon
-                  name={copiedStates['usageWithDefaultLauncher'] ? "FeatherCheck" : "FeatherClipboard"}
-                  className={`h-4 w-4 ${copiedStates['usageWithDefaultLauncher'] ? 'text-green-400' : 'text-gray-300'}`}
-                />
-              </button>
-            </div>
-
-            <p className="text-sm text-gray-600 mt-4"><strong>Option 2: Manual Control</strong> (For custom integration)</p>
-            <p className="text-sm text-gray-600">Set <code className="bg-gray-200 px-1 rounded">useDefaultLauncher={false}</code>. This will not show the default button. You can then trigger Hyphenbox features, like onboarding, from your own UI elements (e.g., a custom button).</p>
-            <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
-              <pre className="overflow-x-auto"><code>{usageWithManualControl}</code></pre>
-              <button
-                onClick={() => handleCopyToClipboard(usageWithManualControl, 'usageWithManualControl')}
-                className="absolute top-2 right-2 p-2 rounded-md bg-gray-700 hover:bg-gray-600"
-              >
-                <SubframeCore.Icon
-                  name={copiedStates['usageWithManualControl'] ? "FeatherCheck" : "FeatherClipboard"}
-                  className={`h-4 w-4 ${copiedStates['usageWithManualControl'] ? 'text-green-400' : 'text-gray-300'}`}
-                />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              To trigger onboarding manually (when <code className="bg-gray-200 px-1 rounded">useDefaultLauncher</code> is <code className="bg-gray-200 px-1 rounded">false</code>), call: <code className="bg-gray-200 px-1 rounded text-black">window.hyphenSDKInstance?.onboarding?.show()</code>.
-              You can similarly access other SDK functions if needed.
-            </p>
+            <Toggle
+              checked={needManualOnboarding}
+              onChange={setNeedManualOnboarding}
+              label="🚀 I want to trigger onboarding from my own buttons"
+              description="You'll get code to start onboarding from anywhere in your app (like after signup, in your navbar, etc.)"
+            />
+            
+            <Toggle
+              checked={needOtherFeatures}
+              onChange={setNeedOtherFeatures}
+              label="📚 I want to show all guides/help content"
+              description="You'll get code to open the full help center from your own UI elements."
+            />
           </div>
-        </div>
-        
-        {/* Step 3: That's it! -> Simplified to integrate into Step 2's explanation */}
-        <div className="flex w-full flex-col items-start gap-6 p-6 border border-neutral-200 rounded-lg bg-green-50">
-          <div className="flex items-center gap-3">
-            <IconWithBackground icon="FeatherPartyPopper" className="bg-green-100 text-green-600" />
-            <h2 className="text-heading-3 font-heading-3 text-default-font">You&apos;re All Set!</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <p className="text-body font-body text-default-font">
-              Your Hyphenbox onboarding is now integrated into your React application.
-            </p>
-            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-              <li>If you chose <strong>Option 1 (Default Launcher)</strong>, the &quot;Help & Guides&quot; button will appear automatically.</li>
-              <li>If you chose <strong>Option 2 (Manual Control)</strong>, you can now trigger onboarding from any part of your application using your custom UI and the <code className="bg-gray-200 px-1 rounded text-black">window.hyphenSDKInstance.onboarding.show()</code> call.</li>
-            </ul>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+
+          {(useDefaultButton && (needManualOnboarding || needOtherFeatures)) && (
+            <div className="w-full p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                <strong>💡 Pro tip:</strong> Start with <strong>Option 1 (Default Launcher)</strong> to quickly verify your setup. You can then switch to <strong>Option 2 (Manual Control)</strong> if you need a more tailored user experience.
+                💡 <strong>Tip:</strong> You can use both the automatic button AND your own custom buttons. They work great together!
               </p>
             </div>
+          )}
+        </div>
+
+        {/* Step 3: Your Custom Code */}
+        {sdkApiKey && (
+          <div className="flex w-full flex-col items-start gap-6 p-6 border border-neutral-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-semibold">3</div>
+              <h2 className="text-heading-3 font-heading-3 text-default-font">Copy Your Custom Code</h2>
+            </div>
+
+            {/* Copy for Cursor Button */}
+            <div className="w-full p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-purple-900 mb-1">✨ Using Cursor AI?</h4>
+                  <p className="text-sm text-purple-800">Copy complete implementation prompt with context + code</p>
+                </div>
+                <Button
+                  onClick={() => handleCopyToClipboard(getCursorPrompt(), 'cursorPrompt')}
+                  variant="primary"
+                  className="bg-purple-600 hover:bg-purple-700 focus:ring-purple-500"
+                >
+                  {copiedStates['cursorPrompt'] ? (
+                    <div className="flex items-center gap-2">
+                      <SubframeCore.Icon name="FeatherCheck" className="h-4 w-4" />
+                      Copied!
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <SubframeCore.Icon name="FeatherClipboard" className="h-4 w-4" />
+                      Copy for Cursor
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="w-full space-y-6">
+              {/* React Component */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">a. HyphenBox Component</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Create this reusable component and place it wherever you keep components in your project:
+                </p>
+                <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
+                  <pre className="overflow-x-auto"><code>{getReactComponentCode()}</code></pre>
+                  <button
+                    onClick={() => handleCopyToClipboard(getReactComponentCode(), 'reactComponent')}
+                    className="absolute top-2 right-2 p-2 rounded-md bg-gray-700 hover:bg-gray-600"
+                  >
+                    <SubframeCore.Icon
+                      name={copiedStates['reactComponent'] ? "FeatherCheck" : "FeatherClipboard"}
+                      className={`h-4 w-4 ${copiedStates['reactComponent'] ? 'text-green-400' : 'text-gray-300'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Usage */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">b. Load Globally</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Add this to your root App.js, layout, or wherever you want it loaded on all pages:
+                </p>
+                <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
+                  <pre className="overflow-x-auto"><code>{getAppUsageCode()}</code></pre>
+                  <button
+                    onClick={() => handleCopyToClipboard(getAppUsageCode(), 'usage')}
+                    className="absolute top-2 right-2 p-2 rounded-md bg-gray-700 hover:bg-gray-600"
+                  >
+                    <SubframeCore.Icon
+                      name={copiedStates['usage'] ? "FeatherCheck" : "FeatherClipboard"}
+                      className={`h-4 w-4 ${copiedStates['usage'] ? 'text-green-400' : 'text-gray-300'}`}
+                    />
+                  </button>
+                </div>
+                
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>⚠️ Important:</strong> Replace "user123" and "John Doe" with real user data from your authentication system. Without real user IDs, onboarding tracking won't work.
+                  </p>
+                </div>
+              </div>
+
+              {/* Manual Triggers */}
+              {(needManualOnboarding || needOtherFeatures) && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">c. Custom Triggers</h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Attach these functions to your custom buttons, navigation, or anywhere you want manual control:
+                  </p>
+                  <div className="relative bg-gray-900 text-white p-4 rounded-md text-sm">
+                    <pre className="overflow-x-auto"><code>{getManualTriggerCode()}</code></pre>
+                    <button
+                      onClick={() => handleCopyToClipboard(getManualTriggerCode(), 'manualTrigger')}
+                      className="absolute top-2 right-2 p-2 rounded-md bg-gray-700 hover:bg-gray-600"
+                    >
+                      <SubframeCore.Icon
+                        name={copiedStates['manualTrigger'] ? "FeatherCheck" : "FeatherClipboard"}
+                        className={`h-4 w-4 ${copiedStates['manualTrigger'] ? 'text-green-400' : 'text-gray-300'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+        )}
+
+        {/* Quick Start */}
+        <div className="flex w-full flex-col items-start gap-6 p-6 border border-neutral-200 rounded-lg bg-gray-50">
+          <div className="flex items-center gap-3">
+            <IconWithBackground icon="FeatherZap" className="bg-yellow-100 text-yellow-600" />
+            <h2 className="text-heading-3 font-heading-3 text-default-font">Quick Test</h2>
+          </div>
+          
+          <p className="text-sm text-gray-600">
+            Want to test it quickly? Check "Show automatic button" above, copy the 2 snippets, and you'll see a floating help button.
+          </p>
         </div>
       </div>
     </div>
