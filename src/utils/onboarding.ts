@@ -6,6 +6,8 @@ export interface OnboardingChecklist {
   organization_id: string;
   name: string;
   title_text: string | null;
+  description: string | null;
+  logo_url: string | null;
   is_active: boolean;
   appearance_settings: Record<string, any> | null; // JSONB
   created_at: string;
@@ -50,7 +52,8 @@ export async function getOrCreateDefaultOnboardingChecklist(organizationId: stri
             is_active: true, 
             name: DEFAULT_ONBOARDING_CHECKLIST_NAME, 
             title_text: checklistToUse.title_text || 'Welcome to our App!', // Keep existing title if present, else default
-            appearance_settings: checklistToUse.appearance_settings || { description: 'Follow these steps to get started.' } // Keep existing settings or default
+            description: checklistToUse.description || 'Follow these steps to get started.', // Keep existing description or default
+            appearance_settings: checklistToUse.appearance_settings || {} // Keep existing settings or empty object
           })
           .eq('id', checklistToUse.id)
           .select()
@@ -68,8 +71,9 @@ export async function getOrCreateDefaultOnboardingChecklist(organizationId: stri
         organization_id: organizationId,
         name: DEFAULT_ONBOARDING_CHECKLIST_NAME,
         title_text: 'Welcome to our App!',
+        description: 'Follow these steps to get started.',
         is_active: true,
-        appearance_settings: { description: 'Follow these steps to get started.' }
+        appearance_settings: {}
       })
       .select()
       .single();
@@ -187,7 +191,7 @@ export async function updateOnboardingChecklistFlows(
  */
 export async function updateOnboardingChecklistDetails(
   checklistId: string, 
-  details: Partial<Pick<OnboardingChecklist, 'name' | 'title_text' | 'appearance_settings' | 'is_active'>>
+  details: Partial<Pick<OnboardingChecklist, 'name' | 'title_text' | 'description' | 'logo_url' | 'appearance_settings' | 'is_active'>>
 ): Promise<{ checklist: OnboardingChecklist | null; error: any | null }> {
   if (!checklistId) return { checklist: null, error: 'Checklist ID is required' };
   if (Object.keys(details).length === 0) return { checklist: null, error: 'No details provided to update' }; // Or return current if no changes

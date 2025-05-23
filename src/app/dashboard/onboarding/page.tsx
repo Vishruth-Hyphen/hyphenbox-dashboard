@@ -86,6 +86,7 @@ function OnboardingPageContent() {
   
   const [widgetHeading, setWidgetHeading] = useState('');
   const [widgetDescription, setWidgetDescription] = useState('');
+  const [customLogoUrl, setCustomLogoUrl] = useState('');
   const [organizationTheme, setOrganizationTheme] = useState<OrgTheme | null>(null);
 
   const loadInitialData = useCallback(async (orgId: string) => {
@@ -99,8 +100,9 @@ function OnboardingPageContent() {
       }
       setCurrentChecklist(checklist);
       setWidgetHeading(checklist.title_text || 'Welcome to our App!');
-      setWidgetDescription(checklist.appearance_settings?.description || 'Follow these steps to get started.');
-
+      setWidgetDescription(checklist.description || 'Follow these steps to get started.');
+      setCustomLogoUrl(checklist.logo_url || '');
+      
       const { flows: checklistFlowsData, error: flowsError } = await getOnboardingChecklistWithFlows(checklist.id);
       if (flowsError) {
         setError('Failed to load onboarding flows: ' + (flowsError?.message || 'Unknown error'));
@@ -205,9 +207,10 @@ function OnboardingPageContent() {
       } else if (type === 'appearance') {
         const appearanceDetails: Partial<OnboardingChecklist> = {
           title_text: widgetHeading,
+          description: widgetDescription,
+          logo_url: customLogoUrl || null,
           appearance_settings: {
             ...(currentChecklist.appearance_settings || {}),
-            description: widgetDescription,
           }
         };
         const { checklist, error: saveDetailsError } = await updateOnboardingChecklistDetails(currentChecklist.id, appearanceDetails);
@@ -233,6 +236,65 @@ function OnboardingPageContent() {
   };
 
   const availableFlowsForSelect = allCursorFlows.filter(af => !selectedOnboardingFlows.some(sf => sf.flow_id === af.id));
+
+  // Handle logo upload
+  const handleLogoUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentOrgId) {
+      setError("Organization ID is missing, cannot upload logo.");
+      return;
+    }
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input to allow re-uploading the same file name
+    event.target.value = '';
+
+    if (file.type !== "image/svg+xml") {
+      setError("Invalid file type. Please upload an SVG file.");
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+
+    const fileName = `onboarding-${currentOrgId}-${Date.now()}.svg`;
+    const filePath = `${fileName}`;
+
+    try {
+      // Upload to Supabase storage
+      const { error: uploadError } = await supabase
+        .storage
+        .from('organization-logos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: 'image/svg+xml'
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('organization-logos')
+        .getPublicUrl(filePath);
+
+      if (!publicUrlData?.publicUrl) {
+        throw new Error("Could not retrieve public URL for the uploaded logo.");
+      }
+
+      const newLogoUrl = publicUrlData.publicUrl;
+
+      // Update state immediately for better UX
+      setCustomLogoUrl(newLogoUrl);
+
+    } catch (err: any) {
+      console.error('Logo upload error:', err);
+      setError(err.message || 'Failed to upload logo.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentOrgId]);
 
   if (isLoading && !currentChecklist) { 
     return <div className="p-12 text-center">Loading onboarding configuration...</div>;
@@ -336,7 +398,7 @@ function OnboardingPageContent() {
           </TextField>
           <TextArea 
             className="w-full mb-4" 
-            label="Widget Description (Optional)"
+            label="Widget Description"
           >
             <TextArea.Input 
               placeholder="e.g., Follow these quick guides to learn the basics."
@@ -346,15 +408,56 @@ function OnboardingPageContent() {
               disabled={isLoading || isSaving}
             />
           </TextArea>
-          <h4 className="text-md font-medium text-gray-600 mb-2 mt-4">Organization Logo</h4>
-          {organizationTheme?.logo_url ? (
-            <img src={organizationTheme.logo_url} alt="Organization Logo" className="max-h-20 max-w-xs p-2 border rounded-md bg-gray-50" />
-          ) : (
-            <div className="p-4 border rounded-md bg-gray-50 text-sm text-gray-500">
-              {organizationTheme === null && !isLoading ? 'Loading logo...' : 'No logo configured in Organization Theme.'}
-            </div>
-          )}
-          <p className="text-xs text-gray-500 mt-2">Logo is managed in Dashboard &gt; Setup &gt; Theme.</p>
+          
+          <div className="flex flex-col gap-4 mb-4">
+            <h4 className="text-md font-medium text-gray-600">Onboarding Logo</h4>
+            
+            {/* Display current logo image if URL exists */}
+            {customLogoUrl && (
+              <div className="flex items-center gap-2 mb-2">
+                <img src={customLogoUrl} alt="Onboarding Logo" className="h-16 w-auto max-w-[200px] rounded border p-2 bg-gray-50" />
+              </div>
+            )}
+            
+            {/* Show organization default if no custom logo */}
+            {!customLogoUrl && organizationTheme?.logo_url && (
+              <div className="flex items-center gap-2 mb-2">
+                <img src={organizationTheme.logo_url} alt="Default Organization Logo" className="h-16 w-auto max-w-[200px] rounded border p-2 bg-gray-50" />
+                <span className="text-xs text-gray-500">Using organization default</span>
+              </div>
+            )}
+            
+            {/* File Input for Upload */}
+            <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-blue-700 transition hover:bg-gray-100 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <SubframeCore.Icon
+                className="text-body font-body"
+                name="FeatherUploadCloud"
+              />
+              <span className="text-sm font-medium">{customLogoUrl ? 'Replace Logo' : 'Upload Custom Logo'}</span>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/svg+xml"
+                onChange={handleLogoUpload}
+                disabled={isSaving}
+              />
+            </label>
+            <span className="text-xs text-gray-500">SVG format required. Leave empty to use organization default logo.</span>
+            
+            {/* Remove custom logo button */}
+            {customLogoUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomLogoUrl('');
+                }}
+                className="text-red-600 text-sm hover:text-red-800 self-start"
+                disabled={isSaving}
+              >
+                Remove custom logo (use organization default)
+              </button>
+            )}
+          </div>
           <div className="mt-6 flex justify-end">
             <Button onClick={() => handleSaveChanges('appearance')} disabled={isLoading || isSaving} loading={isSaving}>Save Appearance</Button>
           </div>
@@ -368,7 +471,7 @@ function OnboardingPageContent() {
             <OnboardingWidgetPreview 
               heading={widgetHeading}
               description={widgetDescription}
-              logoUrl={organizationTheme?.logo_url}
+              logoUrl={customLogoUrl || organizationTheme?.logo_url}
               flows={selectedOnboardingFlows}
             />
           </div>
