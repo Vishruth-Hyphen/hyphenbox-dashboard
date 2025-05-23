@@ -52,21 +52,6 @@ const navSections = [
   },
 ];
 
-const customNavItems = [
-  {
-    label: "Get Started",
-    icon: "FeatherPlay" as SubframeCore.IconName, 
-    action: () => {
-      if (window.hyphenSDKInstance && window.hyphenSDKInstance.onboarding) {
-        window.hyphenSDKInstance.onboarding.show();
-      } else {
-        console.warn("Hyphen SDK not ready or onboarding module unavailable.");
-      }
-    },
-  },
-];
-
-
 const DashboardSidebarRoot = React.forwardRef<
   HTMLElement,
   DashboardSidebarRootProps
@@ -80,6 +65,7 @@ const DashboardSidebarRoot = React.forwardRef<
 
   // State for user profile: name and avatar_url
   const [profile, setProfile] = useState<{ name: string | null; avatar_url: string | null } | null>(null);
+
   useEffect(() => {
     async function loadProfile() {
       if (!userId) return;
@@ -92,6 +78,32 @@ const DashboardSidebarRoot = React.forwardRef<
     }
     loadProfile();
   }, [userId]);
+
+  // Simple onboarding trigger - no complex state management
+  const handleStartOnboarding = () => {
+    try {
+      // Access the global window object with any type to avoid TypeScript conflicts
+      const win = window as any;
+      if (win.Hyphenbox?.onboarding?.show) {
+        win.Hyphenbox.onboarding.show();
+      } else if (win.hyphenSDKInstance?.onboarding?.show) {
+        win.hyphenSDKInstance.onboarding.show();
+      } else {
+        console.warn('Hyphenbox SDK not ready. Please wait for initialization.');
+      }
+    } catch (error) {
+      console.error('Error triggering onboarding:', error);
+    }
+  };
+
+  // Updated custom nav items - much simpler
+  const customNavItems = [
+    {
+      label: "Get Started",
+      icon: "FeatherPlay" as SubframeCore.IconName, 
+      action: handleStartOnboarding,
+    },
+  ];
 
   // For avatar upload
   const fileInputRef = useRef<HTMLInputElement>(null);

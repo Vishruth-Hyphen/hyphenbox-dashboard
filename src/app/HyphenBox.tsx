@@ -1,65 +1,118 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 
-// Declare global type for Hyphenbox on the window object
+// Global type declaration for Hyphenbox
 declare global {
   interface Window {
     Hyphenbox: {
       initialize: (config: {
         apiKey: string;
-        userId: string; // Must be provided
-        userName?: string; // Optional
+        userId: string;
+        userName?: string;
         debug?: boolean;
-        useDefaultLauncher?: boolean; 
-      }) => any;
+        useDefaultLauncher?: boolean; // When true, shows "Help & Guides" button automatically
+      }) => {
+        onboarding: {
+          show: () => void;
+        };
+        copilot: {
+          show: () => void;
+        };
+        viewAllGuides: {
+          show: () => void;
+        };
+      };
     };
-    hyphenSDKInstance?: any; 
+    hyphenSDKInstance?: {
+      onboarding: {
+        show: () => void;
+      };
+      copilot: {
+        show: () => void;
+      };
+      viewAllGuides: {
+        show: () => void;
+      };
+    };
   }
 }
 
 interface HyphenBoxProps {
   apiKey: string;
-  userId: string; // Required - must be a valid string
-  userName?: string; // Optional
-  useDefaultLauncher?: boolean; 
+  userId: string;
+  userName?: string;
+  debug?: boolean;
+  useDefaultLauncher?: boolean; // When true (default), shows the "Help & Guides" button automatically
 }
 
-export default function HyphenBox({ apiKey, userId, userName, useDefaultLauncher = false }: HyphenBoxProps) {
-  const initializedRef = useRef(false);
-
+/**
+ * Hyphenbox Integration Component
+ * 
+ * This is the only component you need to add Hyphenbox to your app.
+ * 
+ * @param apiKey - Your Hyphenbox API key
+ * @param userId - Unique identifier for the user (required)
+ * @param userName - Display name for the user (optional)
+ * @param debug - Enable debug mode (optional, default: false)
+ * @param useDefaultLauncher - Show default "Help & Guides" button (optional, default: true)
+ * 
+ * Usage:
+ * ```jsx
+ * // Option 1: With default launcher (shows "Help & Guides" button automatically)
+ * <HyphenBox apiKey="your-key" userId="user123" userName="John" />
+ * 
+ * // Option 2: Manual control (no default button, you trigger manually)
+ * <HyphenBox apiKey="your-key" userId="user123" useDefaultLauncher={false} />
+ * 
+ * // Then trigger onboarding anywhere:
+ * const handleStartOnboarding = () => {
+ *   window.hyphenSDKInstance?.onboarding?.show();
+ * };
+ * ```
+ */
+export default function HyphenBox({ 
+  apiKey, 
+  userId, 
+  userName, 
+  debug = false, 
+  useDefaultLauncher = true 
+}: HyphenBoxProps) {
   useEffect(() => {
-    // If userId is not provided, log an error and do nothing.
-    if (!userId) {
-      console.error('HyphenBox useEffect: userId is missing. SDK will not be initialized.');
-      return; // Exit useEffect early if no userId
-    }
-
-    if (initializedRef.current) {
+    if (!userId || !apiKey) {
+      console.warn('HyphenBox: apiKey and userId are required');
       return;
     }
 
     const script = document.createElement('script');
-    // Load from the public folder directly
-    script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js'; 
+    script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
     script.async = true;
     script.onload = () => {
-      // Ensure window.Hyphenbox is available
-      if (window.Hyphenbox && typeof window.Hyphenbox.initialize === 'function') {
-        window.hyphenSDKInstance = window.Hyphenbox.initialize({
+      if (window.Hyphenbox?.initialize) {
+        // Initialize the SDK and store instance globally for manual access
+        const sdkInstance = window.Hyphenbox.initialize({
           apiKey,
-          userId, // REQUIRED: User ID from your authentication system
-          userName, // OPTIONAL: User's display name
-          debug: true, // Consider making this configurable or tied to an environment variable
-          useDefaultLauncher: useDefaultLauncher 
+          userId,
+          userName,
+          debug,
+          useDefaultLauncher // This controls whether the default "Help & Guides" button appears
         });
-        initializedRef.current = true; 
-        console.log('HyphenBox SDK Initialized. Default launcher:', useDefaultLauncher);
-      } else {
-        console.error('HyphenBox SDK not loaded or initialize function not found.');
+        
+        // Make SDK available globally for manual triggering
+        window.hyphenSDKInstance = sdkInstance;
+        
+        if (debug) {
+          console.log('HyphenBox initialized successfully', {
+            useDefaultLauncher,
+            userId,
+            userName
+          });
+        }
       }
     };
+    
     script.onerror = () => {
-      console.error('Failed to load the HyphenBox SDK script from /flow.js');
+      console.error('Failed to load HyphenBox SDK');
     };
+    
     document.body.appendChild(script);
     
     return () => {
@@ -67,16 +120,7 @@ export default function HyphenBox({ apiKey, userId, userName, useDefaultLauncher
         document.body.removeChild(script);
       }
     };
-  }, [apiKey, userId, userName, useDefaultLauncher]); // Dependencies array ensures effect runs when these change
+  }, [apiKey, userId, userName, debug, useDefaultLauncher]);
 
-  // If userId is not provided, this component effectively renders nothing
-  // and logs an error. The useEffect above also guards against this.
-  if (!userId) {
-    console.error('HyphenBox render: userId is missing. The component will render null.');
-    return null;
-  }
-  
-  // This component does not render any visible UI itself.
-  // Its purpose is to inject the Hyphenbox script.
   return null;
 }
