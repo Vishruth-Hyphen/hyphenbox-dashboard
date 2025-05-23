@@ -260,7 +260,7 @@ Add interactive user onboarding to my React application using HyphenBox SDK.
 
     if (useDefaultButton) {
       prompt += `
-- Show automatic "Help & Guides" floating button`;
+- Show automatic &quot;Help & Guides&quot; floating button`;
     }
     if (needManualOnboarding) {
       prompt += `
@@ -289,7 +289,7 @@ Add this to your root App.js, layout, or wherever you want it loaded on all page
 ${getAppUsageCode()}
 \`\`\`
 
-**CRITICAL: Replace "user123" and "John Doe" with real user data from your authentication system. The userId should be unique per user for proper tracking.**`;
+**CRITICAL: Replace &quot;user123&quot; and &quot;John Doe&quot; with real user data from your authentication system. The userId should be unique per user for proper tracking.**`;
 
     if (needManualOnboarding || needOtherFeatures) {
       prompt += `
@@ -307,7 +307,7 @@ ${getManualTriggerCode()}
 ## Expected Behavior`;
     if (useDefaultButton) {
       prompt += `
-- A floating "Help & Guides" button will appear automatically on all pages`;
+- A floating &quot;Help & Guides&quot; button will appear automatically on all pages`;
     }
     if (needManualOnboarding) {
       prompt += `
@@ -390,28 +390,28 @@ Please help me implement this properly in my React application following my proj
             <h2 className="text-heading-3 font-heading-3 text-default-font">Choose Your Setup</h2>
           </div>
 
-          <p className="text-sm text-gray-600">Tell us what you need and we'll generate the perfect code for you:</p>
+          <p className="text-sm text-gray-600">Tell us what you need and we&apos;ll generate the perfect code for you:</p>
 
           <div className="w-full space-y-3">
             <Toggle
               checked={useDefaultButton}
               onChange={setUseDefaultButton}
-              label="🎯 Show automatic 'Help & Guides' button"
-              description="We'll add a floating button to your app automatically. Users can click it to access onboarding and guides."
+              label="🎯 Show automatic &apos;Help & Guides&apos; button"
+              description="We&apos;ll add a floating button to your app automatically. Users can click it to access onboarding and guides."
             />
             
             <Toggle
               checked={needManualOnboarding}
               onChange={setNeedManualOnboarding}
               label="🚀 I want to trigger onboarding from my own buttons"
-              description="You'll get code to start onboarding from anywhere in your app (like after signup, in your navbar, etc.)"
+              description="You&apos;ll get code to start onboarding from anywhere in your app (like after signup, in your navbar, etc.)"
             />
             
             <Toggle
               checked={needOtherFeatures}
               onChange={setNeedOtherFeatures}
               label="📚 I want to show all guides/help content"
-              description="You'll get code to open the full help center from your own UI elements."
+              description="You&apos;ll get code to open the full help center from your own UI elements."
             />
           </div>
 
@@ -501,7 +501,7 @@ Please help me implement this properly in my React application following my proj
                 
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-800">
-                    <strong>⚠️ Important:</strong> Replace "user123" and "John Doe" with real user data from your authentication system. Without real user IDs, onboarding tracking won't work.
+                    <strong>⚠️ Important:</strong> Replace &quot;user123&quot; and &quot;John Doe&quot; with real user data from your authentication system. Without real user IDs, onboarding tracking won&apos;t work.
                   </p>
                 </div>
               </div>
@@ -539,7 +539,7 @@ Please help me implement this properly in my React application following my proj
           </div>
           
           <p className="text-sm text-gray-600">
-            Want to test it quickly? Check "Show automatic button" above, copy the 2 snippets, and you'll see a floating help button.
+            Want to test it quickly? Check &quot;Show automatic button&quot; above, copy the 2 snippets, and you&apos;ll see a floating help button.
           </p>
         </div>
       </div>
