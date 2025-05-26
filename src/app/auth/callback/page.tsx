@@ -39,22 +39,16 @@ function CallbackContent() {
         }
         
         // Explicitly refresh the session to ensure tokens are saved to storage/cookies
-        console.log("[AUTH] Refreshing session tokens...");
         const { error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError) {
           console.error("[AUTH] Error refreshing session:", refreshError.message);
         }
 
-        // Add a delay to ensure auth is fully established
-        // console.log("[AUTH] Waiting for auth to fully establish...");
-        // await new Promise(resolve => setTimeout(resolve, 300)); // Reduce from 2000ms
-        
         // ADDED: Check for pending invitations
         let membershipCreated = false;
         
         if (currentSession?.user?.email) {
           const userEmail = currentSession.user.email.toLowerCase().trim();
-          console.log("[AUTH] Checking for pending invitations for:", userEmail);
           
           // Find pending invitations for this email - use case-insensitive comparison
           const { data: invitations, error: invitationError } = await supabase
@@ -64,16 +58,9 @@ function CallbackContent() {
             .eq('status', 'pending')
             .gt('expires_at', new Date().toISOString());
           
-          console.log("[AUTH-DEBUG] Invitation search result:", {
-            email: userEmail,
-            found: invitations ? invitations.length : 0,
-            error: invitationError ? invitationError.message : null
-          });
-          
           if (invitationError) {
             console.error("[AUTH] Error fetching invitations:", invitationError.message);
           } else if (invitations && invitations.length > 0) {
-            console.log("[AUTH] Found pending invitations:", invitations.length);
             
             // Process each invitation
             for (const invite of invitations) {
@@ -91,7 +78,6 @@ function CallbackContent() {
                 
                 // Check if error is due to duplicate - still count as success
                 if (membershipError.code === '23505') { // Postgres unique violation
-                  console.log("[AUTH] User already has membership for this organization");
                   membershipCreated = true;
                 }
               } else {
@@ -102,15 +88,12 @@ function CallbackContent() {
                   .from('team_invitations')
                   .update({ status: 'accepted' })
                   .eq('id', invite.id);
-                  
-                console.log("[AUTH] Successfully processed invitation:", invite.id);
               }
             }
           }
           
           // If no invitations were found, check if user already has memberships
           if (!invitations || invitations.length === 0) {
-            console.log("[AUTH] No pending invitations, checking existing memberships");
             
             const { data: existingMemberships } = await supabase
               .from('organization_members')
@@ -118,7 +101,6 @@ function CallbackContent() {
               .eq('user_id', currentSession.user.id);
               
             if (existingMemberships && existingMemberships.length > 0) {
-              console.log("[AUTH] User already has organization memberships");
               membershipCreated = true;
             }
           }
@@ -126,7 +108,6 @@ function CallbackContent() {
         
         // After membership creation
         if (membershipCreated) {
-          console.log("[AUTH] Organization membership confirmed, refreshing auth state...");
           await supabase.auth.refreshSession();
           await new Promise(resolve => setTimeout(resolve, 1000));
           router.push('/dashboard');
@@ -135,10 +116,8 @@ function CallbackContent() {
           const isSuperAdmin = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com'].includes(currentSession?.user?.email || '');
           
           if (isSuperAdmin) {
-            console.log("[AUTH] Super admin detected, redirecting to organizations");
             router.push('/dashboard/organizations');
           } else {
-            console.log("[AUTH] No organization access, redirecting to login");
             router.push('/auth/login?error=no_organization_access');
           }
         }

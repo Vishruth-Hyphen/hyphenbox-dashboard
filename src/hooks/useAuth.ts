@@ -55,8 +55,6 @@ export function useOrganization() {
       
       // Broadcast the change
       broadcastOrgChange(orgId, orgName);
-      
-      console.log(`[ORG] Switched to organization: ${orgName} (${orgId})`);
     }
   }, [broadcastOrgChange]);
   
@@ -140,7 +138,6 @@ export function useOrganization() {
       const { orgId, orgName } = event.detail;
       setCurrentOrgId(orgId);
       setCurrentOrgName(orgName);
-      console.log(`[ORG] Received organization change event: ${orgName} (${orgId})`);
     };
     
     if (typeof window !== 'undefined') {

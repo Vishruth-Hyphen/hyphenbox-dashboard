@@ -18,6 +18,8 @@ function CursorAppearancePage() {
   const [cursorName, setCursorName] = useState(""); // Default empty
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // Current logo URL
   const [logoFileName, setLogoFileName] = useState<string | null>(null); // Displayed file name
+  const [buttonPosition, setButtonPosition] = useState("bottom-left"); // New: Button position
+  const [buttonText, setButtonText] = useState("Help & Guides"); // New: Button text
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ function CursorAppearancePage() {
       try {
         const { data, error: fetchError } = await supabase
           .from("organization_themes")
-          .select("brand_color, cursor_company_label, logo_url")
+          .select("brand_color, cursor_company_label, logo_url, button_position, button_text")
           .eq("organization_id", organizationId)
           .maybeSingle(); // Use maybeSingle to handle potential null result
 
@@ -47,6 +49,8 @@ function CursorAppearancePage() {
           setBrandColor(data.brand_color || "#2563EB");
           setCursorName(data.cursor_company_label || ""); // Use empty string if null
           setLogoUrl(data.logo_url || null);
+          setButtonPosition(data.button_position || "bottom-left"); // New field
+          setButtonText(data.button_text || "Help & Guides"); // New field
           // Extract filename from URL if it exists
           if (data.logo_url) {
              try {
@@ -63,11 +67,12 @@ function CursorAppearancePage() {
         } else {
            // If no data, set defaults (could also indicate an issue)
            // The trigger should create defaults, but handle case where it might not exist yet
-           console.log("No existing theme found for organization, using defaults.");
            setBrandColor("#2563EB");
            setCursorName("");
            setLogoUrl(null);
            setLogoFileName(null);
+           setButtonPosition("bottom-left");
+           setButtonText("Help & Guides");
         }
       } catch (err: any) {
         console.error("Error fetching theme:", err);
@@ -161,6 +166,13 @@ function CursorAppearancePage() {
        return;
     }
 
+    // Validate button text is not empty
+    if (!buttonText.trim()) {
+      setError("Button text cannot be empty.");
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const { error: updateError } = await supabase
         .from("organization_themes")
@@ -168,14 +180,15 @@ function CursorAppearancePage() {
           brand_color: brandColor,
           cursor_company_label: cursorName || null, // Store null if empty
           logo_url: currentLogoUrl, // Use the potentially updated logo URL
+          button_position: buttonPosition, // New field
+          button_text: buttonText, // New field
           updated_at: new Date().toISOString(),
         })
         .eq("organization_id", organizationId);
 
       if (updateError) throw updateError;
 
-      // Optionally add success feedback, e.g., a toast notification
-      console.log("Theme updated successfully!");
+      // Success - consider adding toast notification for better UX
 
     } catch (err: any) {
       console.error("Error saving theme:", err);
@@ -183,7 +196,7 @@ function CursorAppearancePage() {
     } finally {
       setIsSaving(false);
     }
-  }, [organizationId, brandColor, cursorName, logoUrl, supabase]);
+  }, [organizationId, brandColor, cursorName, logoUrl, buttonPosition, buttonText, supabase]);
 
 
   if (isLoading) {
@@ -200,7 +213,7 @@ function CursorAppearancePage() {
           {/* Wrap previews in a flex container with gap */}
           <div className="w-full mb-4 flex items-center gap-4"> 
              <CursorPreview brandColor={brandColor} cursorName={cursorName} />
-             <CoPilotButtonPreview logoUrl={logoUrl} />
+             <CoPilotButtonPreview logoUrl={logoUrl} buttonText={buttonText} buttonPosition={buttonPosition} />
           </div>
         {/* </div> */}
 
@@ -243,6 +256,42 @@ function CursorAppearancePage() {
                      className="text-body font-body" // Style the input itself if needed
                   />
                </TextField>
+            </div>
+          </div>
+
+          {/* Button Position Section */}
+          <div className="flex w-full items-center gap-2 border-b border-solid border-neutral-border px-4 py-4">
+            <span className="w-1/3 text-body font-body text-subtext-color">
+              Button Position
+            </span>
+            <div className="flex w-2/3 items-center justify-start gap-2">
+              <select
+                value={buttonPosition}
+                onChange={(e) => setButtonPosition(e.target.value)}
+                className="flex-grow px-3 py-2 border border-neutral-300 rounded-md text-body font-body bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-right">Bottom Right</option>
+                <option value="bottom-center">Bottom Center</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Button Text Section */}
+          <div className="flex w-full items-center gap-2 border-b border-solid border-neutral-border px-4 py-4">
+            <span className="w-1/3 text-body font-body text-subtext-color">
+              Button Text
+            </span>
+            <div className="flex w-2/3 items-center justify-start gap-2">
+              <TextField variant="outline" className="flex-grow">
+                <TextField.Input
+                  type="text"
+                  value={buttonText}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setButtonText(e.target.value)}
+                  placeholder="Help & Guides"
+                  className="text-body font-body"
+                />
+              </TextField>
             </div>
           </div>
 

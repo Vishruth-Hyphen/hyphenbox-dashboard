@@ -17,70 +17,102 @@ const DefaultIcon = () => (
 
 interface CoPilotButtonPreviewProps {
   logoUrl: string | null;
+  buttonText?: string;
+  buttonPosition?: string;
 }
 
-const CoPilotButtonPreview: React.FC<CoPilotButtonPreviewProps> = ({ logoUrl }) => {
-  const buttonText = "Co-pilot"; // Default text from cursorFlow.ts
+const CoPilotButtonPreview: React.FC<CoPilotButtonPreviewProps> = ({ 
+  logoUrl, 
+  buttonText = "Help & Guides", 
+  buttonPosition = "bottom-left" 
+}) => {
+  // Get position-specific styles that match the SDK implementation
+  const getPositionStyles = () => {
+    switch (buttonPosition) {
+      case 'bottom-right':
+        return { justifyContent: 'flex-end' };
+      case 'bottom-center':
+        return { justifyContent: 'center' };
+      case 'bottom-left':
+      default:
+        return { justifyContent: 'flex-start' };
+    }
+  };
 
   return (
-    <button
-      className='hyphen-start-button-preview'
-      style={{
-        // Styles copied & adapted from createStartButton in uiComponents.ts
-        padding: '10px 16px',
-        backgroundColor: '#ffffff',
-        color: '#1a1a1a',
-        border: 'none',
-        borderRadius: '12px',
-        fontSize: '14px',
-        fontWeight: 500,
-        cursor: 'default', // Not clickable in preview
-        boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-        zIndex: 1, // Lower z-index for preview context
-        display: 'inline-flex', // Use inline-flex for inline behavior
-        alignItems: 'center',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        minHeight: '40px',
-        transition: 'box-shadow 0.2s ease', // Basic transition
-        position: 'relative', // Needed if using absolute positioning internally (like drag indicator in original)
-      }}
-      // Add hover effect simulation (optional, can be done with CSS pseudo-classes too)
-      onMouseOver={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
-      }}
-      onMouseOut={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.1)';
-      }}
-    >
-      <div
-        className="hyphen-button-content"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
+    <div className="w-full">
+      <div className="text-sm font-medium text-gray-700 mb-2">Button Preview</div>
+      
+      {/* Container showing button position */}
+      <div 
+        className="w-full h-16 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-end p-2"
+        style={getPositionStyles()}
       >
-        <div
-          className="hyphen-icon"
-          style={{ display: 'flex', alignItems: 'center', width: '24px', height: '24px' }} // Ensure container has size
+        <button
+          className='hyphen-start-button-preview'
+          style={{
+            // Styles copied & adapted from createStartButton in uiComponents.ts
+            padding: '10px 16px',
+            backgroundColor: '#ffffff',
+            color: '#1a1a1a',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'default', // Not clickable in preview
+            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+            zIndex: 1, // Lower z-index for preview context
+            display: 'inline-flex', // Use inline-flex for inline behavior
+            alignItems: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            minHeight: '40px',
+            transition: 'box-shadow 0.2s ease', // Basic transition
+            position: 'relative', // Needed if using absolute positioning internally (like drag indicator in original)
+          }}
+          // Add hover effect simulation (optional, can be done with CSS pseudo-classes too)
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.1)';
+          }}
         >
-          {logoUrl ? (
-            <img 
-              src={logoUrl}
-              alt="Company Logo Preview"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            />
-          ) : (
-            <DefaultIcon /> // Render default icon if no logoUrl
-          )}
-        </div>
-        <span className="hyphen-text" style={{ whiteSpace: 'nowrap' }}>
-          {buttonText}
-        </span>
+          <div
+            className="hyphen-button-content"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <div
+              className="hyphen-icon"
+              style={{ display: 'flex', alignItems: 'center', width: '24px', height: '24px' }} // Ensure container has size
+            >
+              {logoUrl ? (
+                <img 
+                  src={logoUrl}
+                  alt="Company Logo Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              ) : (
+                <DefaultIcon /> // Render default icon if no logoUrl
+              )}
+            </div>
+            <span className="hyphen-text" style={{ whiteSpace: 'nowrap' }}>
+              {buttonText}
+            </span>
+          </div>
+        </button>
       </div>
-    </button>
+      
+      {/* Position indicator */}
+      <div className="text-xs text-gray-500 mt-1 text-center">
+        Position: {buttonPosition.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+      </div>
+    </div>
   );
 };
 

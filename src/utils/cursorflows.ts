@@ -223,7 +223,6 @@ export const processJsonForCursorFlow = async (
     }
 
     // After successful step creation, trigger text generation
-    console.log('Triggering text generation for flow:', flowData.id);
     const { success: textSuccess, processedCount, error: textError } = await generateCursorFlowText(flowData.id);
     
     if (!textSuccess) {
@@ -805,7 +804,6 @@ export const triggerEmbeddingGeneration = async (
   message?: string;
   error?: any;
 }> => {
-  // console.log(`[Frontend Embedding Trigger] Attempting to trigger embedding for flow: ${flowId}`); // Removed debug log
   try {
     const response = await fetch(`/api/dashboard/internal/cursorflows/${flowId}/generate-embeddings`, {
       method: 'POST',
@@ -819,7 +817,6 @@ export const triggerEmbeddingGeneration = async (
 
     const result = await response.json();
     
-    console.log(`[Embedding Trigger] Started generation for flow ${flowId}`); // Keep success log
     return { 
       success: true,
       message: result.message || 'Embedding generation started successfully'

@@ -150,14 +150,6 @@ export const createAudience = async (
     // Format the user ID properly
     const userId = formatUserId(audienceData.created_by);
     
-    // Log the IDs for debugging
-    console.log('Creating audience with:', {
-      name: audienceData.name,
-      description: audienceData.description,
-      organization_id: audienceData.organization_id,
-      created_by: userId // Use the properly formatted ID
-    });
-    
     const { data, error } = await supabase
       .from('audiences')
       .insert({
@@ -199,11 +191,6 @@ export const associateFlowsWithAudience = async (
   }
 
   try {
-    console.log('Associating flows with audience:', {
-      audienceId,
-      flowIds
-    });
-    
     const { error } = await supabase
       .from('cursor_flows')
       .update({ audience_id: audienceId })

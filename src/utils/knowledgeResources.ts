@@ -227,8 +227,6 @@ export const deleteResource = async (
         const fileKey = pathParts[pathParts.length - 1]; // Get the filename
         const filePath = `${organizationId}/${fileKey}`; // Reconstruct the path
         
-        console.log('Deleting file from storage:', filePath);
-        
         const { error: storageError } = await supabase.storage
           .from('knowledge-resources')
           .remove([filePath]);
