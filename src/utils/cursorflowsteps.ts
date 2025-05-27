@@ -65,10 +65,60 @@ export const parseRecordingToSteps = (flowId: string, jsonData: any): {stepData:
         const scrollX = viewport.scrollX || 0;
         const scrollY = viewport.scrollY || 0;
         
+        // ENHANCED: Structure step_data to include all XPath and element finding data
+        const enhancedStepData = {
+          // Core interaction data
+          id: interactionCopy.id,
+          type: interactionCopy.type,
+          timestamp: interactionCopy.timestamp,
+          timeOffset: interactionCopy.timeOffset,
+          
+          // Page information
+          pageInfo: interactionCopy.pageInfo,
+          
+          // Enhanced element data for XPath finder
+          element: {
+            // Basic element properties
+            tagName: interaction.element?.tagName,
+            id: interaction.element?.id,
+            textContent: interaction.element?.textContent,
+            cssSelector: interaction.element?.cssSelector,
+            path: interaction.element?.path,
+            attributes: interaction.element?.attributes,
+            semanticClasses: interaction.element?.semanticClasses,
+            childSvgClass: interaction.element?.childSvgClass,
+            
+            // NEW: Enhanced XPath strategies (if available from new recorder)
+            xpathStrategies: interaction.element?.xpathStrategies || [],
+            
+            // NEW: Parent-child relationship context (if available from new recorder)
+            parentChildContext: interaction.element?.parentChildContext || null,
+            
+            // NEW: Stable attributes for reliable identification (if available from new recorder)
+            stableAttributes: interaction.element?.stableAttributes || {},
+            
+            // Legacy support: Keep existing properties for backward compatibility
+            viewport: viewport,
+            scrollX: scrollX,
+            scrollY: scrollY
+          },
+          
+          // Position and interaction metadata
+          position: interactionCopy.position,
+          elementRect: interactionCopy.elementRect,
+          
+          // Interaction type and action
+          action: interactionCopy.action || interactionCopy.type,
+          
+          // Additional metadata for element finding
+          interaction_type: interactionCopy.type,
+          guidance_text: annotationText
+        };
+        
         return {
           flow_id: flowId,
           position: (index + 1) * 1000, // Use increments of 1000 for easier insertion/deletion
-          step_data: interactionCopy, // Use the cleaned version without screenshots
+          step_data: enhancedStepData, // Use the enhanced structured version
           screenshot_url: null, // This will be set elsewhere if needed
           annotation_text: annotationText,
           // Set cursor position in dedicated columns
