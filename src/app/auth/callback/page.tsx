@@ -132,7 +132,7 @@ function CallbackContent() {
                   console.log("[AUTH_CALLBACK] Received hyphenbox_api_token.");
                   // Send to Chrome Extension
                   if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-                    const EXTENSION_ID = process.env.NEXT_PUBLIC_CHROME_EXTENSION_ID || 'lpnoadkciihfokjnmijpjhbffbpkgjol'; // Use provided ID
+                    const EXTENSION_ID = lpnoadkciihfokjnmijpjhbffbpkgjol; // Replace with your actual extension ID
                     chrome.runtime.sendMessage(EXTENSION_ID, { type: 'SET_AUTH_TOKEN', token: hyphenbox_api_token }, (crxResponse) => {
                       if (chrome.runtime.lastError) {
                         console.warn("[AUTH_CALLBACK] Error sending token to extension:", chrome.runtime.lastError.message, "Is the extension installed and active? Extension ID used:", EXTENSION_ID);
