@@ -5,172 +5,192 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+// Helper function to exchange Supabase token for hyphenbox_api_token and send to extension
+async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFlow") {
+  if (!accessToken) {
+    console.warn(`[AUTH_CALLBACK] ${flowType}: No access token provided for exchange.`);
+    return false;
+  }
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/exchange-supabase-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supabase_access_token: accessToken }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`[AUTH_CALLBACK] ${flowType}: Error exchanging token:`, errorData.error || response.statusText);
+      return false;
+    }
+
+    const { hyphenbox_api_token } = await response.json();
+    if (hyphenbox_api_token) {
+      console.log(`[AUTH_CALLBACK] ${flowType}: Received hyphenbox_api_token.`);
+      if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
+        const EXTENSION_ID = 'lpnoadkciihfokjnmijpjhbffbpkgjol'; // Your extension ID
+        // Return a promise that resolves based on sendMessage callback
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(EXTENSION_ID, { type: 'SET_AUTH_TOKEN', token: hyphenbox_api_token }, (crxResponse) => {
+            if (chrome.runtime.lastError) {
+              console.warn(`[AUTH_CALLBACK] ${flowType}: Error sending token to extension:`, chrome.runtime.lastError.message);
+              resolve(false);
+            } else if (crxResponse && crxResponse.success) {
+              console.log(`[AUTH_CALLBACK] ${flowType}: Token successfully sent to extension.`);
+              resolve(true);
+            } else {
+              console.warn(`[AUTH_CALLBACK] ${flowType}: Extension acknowledged but no success or no response handler:`, crxResponse);
+              resolve(false); // Or true if ack is enough, depending on desired behavior
+            }
+          });
+        });
+      } else {
+        console.warn(`[AUTH_CALLBACK] ${flowType}: chrome.runtime.sendMessage not available. Cannot send token.`);
+        return false;
+      }
+    } else {
+      console.warn(`[AUTH_CALLBACK] ${flowType}: hyphenbox_api_token not found in backend response.`);
+      return false;
+    }
+  } catch (exchangeError) {
+    console.error(`[AUTH_CALLBACK] ${flowType}: Network or other error during token exchange:`, exchangeError);
+    return false;
+  }
+}
+
 // Minimal Callback Component
 function CallbackContent() {
   const router = useRouter();
 
   useEffect(() => {
-    // Explicitly handle the session from the URL
     const handleAuthCallback = async () => {
       try {
-        // First, confirm we have a session
-        let currentSession = null;
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("[AUTH] Error processing callback:", error.message);
-          router.push('/auth/login?error=session_error');
+        const urlParams = new URLSearchParams(window.location.search);
+        const source = urlParams.get('source');
+
+        const { data: { session: initialSession }, error: initialSessionError } = await supabase.auth.getSession();
+
+        if (initialSessionError) {
+          console.error("[AUTH_CALLBACK] Error getting initial session:", initialSessionError.message);
+          router.push('/auth/login?error=session_error_initial');
           return;
         }
         
-        if (!session) {
-          // Check again
-          const { data: { session: refreshedSession } } = await supabase.auth.getSession();
-          if (!refreshedSession) {
-            console.error("[AUTH] Session not established after callback");
-            router.push('/auth/login?error=no_session');
-            return;
-          }
-          
-          // Use the refreshed session
-          currentSession = refreshedSession;
-        } else {
-          // Use the original session
-          currentSession = session;
-        }
-        
-        // Explicitly refresh the session to ensure tokens are saved to storage/cookies
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          console.error("[AUTH] Error refreshing session:", refreshError.message);
+        let currentSession = initialSession;
+
+        // Fast path for extension login if user is already logged into the dashboard
+        if (source === 'extension_login' && currentSession?.access_token) {
+          console.log("[AUTH_CALLBACK] Extension login detected with existing dashboard session.");
+          await exchangeAndSendTokenToExtension(currentSession.access_token, "ExtensionFastPath");
+          // Regardless of token sending success, close the tab for this specific flow.
+          // The user initiated this from the extension expecting a quick, non-interactive process.
+          console.log("[AUTH_CALLBACK] ExtensionFastPath: Attempting to close tab.");
+          window.close();
+          return; // Stop further processing.
         }
 
-        // ADDED: Check for pending invitations
+        // --- Standard callback flow (e.g., after magic link, or if not an extension fast-path) ---
+        if (!currentSession) {
+          // Attempt to refresh or get session again, especially if coming from magic link
+          const { data: { session: refreshedSessionData }, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError && !refreshedSessionData) {
+            const { data: { session: finalSessionCheck }, error: finalError } = await supabase.auth.getSession();
+            if (finalError || !finalSessionCheck) {
+              console.error("[AUTH_CALLBACK] StandardFlow: Session not established after all attempts.");
+              router.push('/auth/login?error=no_session_final');
+              return;
+            }
+            currentSession = finalSessionCheck;
+          } else if (refreshedSessionData) {
+            currentSession = refreshedSessionData;
+          } else {
+            console.error("[AUTH_CALLBACK] StandardFlow: Session not established (no data from refresh).");
+            router.push('/auth/login?error=no_session_fallback');
+            return;
+          }
+        }
+
+        if (!currentSession?.access_token) {
+          console.error("[AUTH_CALLBACK] StandardFlow: Critical - No session access_token.");
+          router.push('/auth/login?error=session_token_missing');
+          return;
+        }
+
+        // Process invitations and memberships
         let membershipCreated = false;
-        
         if (currentSession?.user?.email) {
           const userEmail = currentSession.user.email.toLowerCase().trim();
-          
-          // Find pending invitations for this email - use case-insensitive comparison
           const { data: invitations, error: invitationError } = await supabase
             .from('team_invitations')
             .select('id, organization_id')
-            .ilike('email', userEmail) // Use ilike for case-insensitive matching
+            .ilike('email', userEmail)
             .eq('status', 'pending')
             .gt('expires_at', new Date().toISOString());
-          
+
           if (invitationError) {
-            console.error("[AUTH] Error fetching invitations:", invitationError.message);
+            console.error("[AUTH_CALLBACK] StandardFlow: Error fetching invitations:", invitationError.message);
           } else if (invitations && invitations.length > 0) {
-            
-            // Process each invitation
             for (const invite of invitations) {
-              // Create organization membership
               const { error: membershipError } = await supabase
                 .from('organization_members')
                 .insert({
                   organization_id: invite.organization_id,
                   user_id: currentSession.user.id,
-                  role: 'member' // Default role
+                  role: 'member'
                 });
-              
               if (membershipError) {
-                console.error("[AUTH] Error creating membership:", membershipError.message);
-                
-                // Check if error is due to duplicate - still count as success
-                if (membershipError.code === '23505') { // Postgres unique violation
-                  membershipCreated = true;
-                }
+                console.error("[AUTH_CALLBACK] StandardFlow: Error creating membership:", membershipError.message);
+                if (membershipError.code === '23505') membershipCreated = true; // Already a member
               } else {
                 membershipCreated = true;
-                
-                // Update invitation status
-                await supabase
-                  .from('team_invitations')
-                  .update({ status: 'accepted' })
-                  .eq('id', invite.id);
+                await supabase.from('team_invitations').update({ status: 'accepted' }).eq('id', invite.id);
               }
             }
           }
-          
-          // If no invitations were found, check if user already has memberships
-          if (!invitations || invitations.length === 0) {
-            
+          if (!membershipCreated) {
             const { data: existingMemberships } = await supabase
               .from('organization_members')
               .select('organization_id')
               .eq('user_id', currentSession.user.id);
-              
             if (existingMemberships && existingMemberships.length > 0) {
               membershipCreated = true;
             }
           }
         }
         
-        // After membership creation
+        // Exchange token and redirect for standard flow
         if (membershipCreated) {
-          await supabase.auth.refreshSession();
-          const { data: { session: refreshedSessionAgain } } = await supabase.auth.getSession();
+          // Refresh session again to ensure all claims/data are up-to-date after potential membership changes
+          const { data: { session: finalRefreshedSession }, error: finalRefreshError } = await supabase.auth.refreshSession();
+          let sessionForTokenExchange = finalRefreshedSession || currentSession; // Use latest good session
 
-          if (refreshedSessionAgain?.access_token) {
-            try {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/exchange-supabase-token`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ supabase_access_token: refreshedSessionAgain.access_token }),
-              });
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                console.error("[AUTH_CALLBACK] Error exchanging Supabase token for hyphenbox_api_token:", errorData.error || response.statusText);
-                // Decide how to handle this error - e.g., redirect to login with an error, or proceed without extension token
-              } else {
-                const { hyphenbox_api_token } = await response.json();
-                if (hyphenbox_api_token) {
-                  console.log("[AUTH_CALLBACK] Received hyphenbox_api_token.");
-                  // Send to Chrome Extension
-                  if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-                    const EXTENSION_ID = 'lpnoadkciihfokjnmijpjhbffbpkgjol'; // Chrome extension ID must be a string
-                    chrome.runtime.sendMessage(EXTENSION_ID, { type: 'SET_AUTH_TOKEN', token: hyphenbox_api_token }, (crxResponse) => {
-                      if (chrome.runtime.lastError) {
-                        console.warn("[AUTH_CALLBACK] Error sending token to extension:", chrome.runtime.lastError.message, "Is the extension installed and active? Extension ID used:", EXTENSION_ID);
-                        // Potentially inform the user or log this for analytics
-                      } else if (crxResponse && crxResponse.success) {
-                        console.log("[AUTH_CALLBACK] Token successfully sent to extension.");
-                      } else {
-                        console.warn("[AUTH_CALLBACK] Extension acknowledged receipt, but did not report success (or no response handler):", crxResponse);
-                      }
-                    });
-                  } else {
-                    console.warn("[AUTH_CALLBACK] chrome.runtime.sendMessage not available. Cannot send token to extension. Running outside of an environment with extension communication capabilities or extension not installed.");
-                  }
-                } else {
-                  console.warn("[AUTH_CALLBACK] hyphenbox_api_token not found in backend response.");
-                }
-              }
-            } catch (exchangeError) {
-              console.error("[AUTH_CALLBACK] Network or other error during token exchange:", exchangeError);
-              // Handle this error appropriately
-            }
+          if (finalRefreshError && !finalRefreshedSession) {
+            console.warn("[AUTH_CALLBACK] StandardFlow: Error on final refresh, using previous session for token exchange.", finalRefreshError.message);
           }
-
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (sessionForTokenExchange?.access_token) {
+            await exchangeAndSendTokenToExtension(sessionForTokenExchange.access_token, "StandardFlow_Membership");
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 300)); // Short delay
           router.push('/dashboard');
         } else {
-          // Special case for super admins
           const isSuperAdmin = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com'].includes(currentSession?.user?.email || '');
-          
           if (isSuperAdmin) {
+            // Super admins might not have an org from invitations but should still get token for extension
+            if (currentSession?.access_token) {
+                 await exchangeAndSendTokenToExtension(currentSession.access_token, "StandardFlow_SuperAdmin");
+            }
             router.push('/dashboard/organizations');
           } else {
+            console.warn("[AUTH_CALLBACK] StandardFlow: User has no organization access and is not super admin.");
             router.push('/auth/login?error=no_organization_access');
           }
         }
       } catch (err) {
-        console.error("[AUTH] Unexpected error in callback:", err);
-        router.push('/auth/login?error=unexpected_error');
+        console.error("[AUTH_CALLBACK] Unexpected error in main callback handler:", err);
+        router.push('/auth/login?error=unexpected_error_main');
       }
     };
 
