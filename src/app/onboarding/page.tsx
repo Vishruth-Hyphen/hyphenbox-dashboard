@@ -68,7 +68,7 @@ export default function OnboardingPage() {
             Welcome to Hyphenbox! 🎉
           </h1>
           <p className="text-lg text-gray-600">
-            Let's get {companyName} set up to create amazing user onboarding experiences.
+            Let&apos;s get {companyName} set up to create amazing user onboarding experiences.
           </p>
         </div>
 
@@ -87,7 +87,7 @@ export default function OnboardingPage() {
                 </h3>
                 <p className="text-gray-600 mb-4">
                   The Hyphenbox Chrome extension lets you record user flows on any website. 
-                  You'll use it to capture the exact steps your users should follow.
+                  You&apos;ll use it to capture the exact steps your users should follow.
                 </p>
                 {extensionInstalled ? (
                   <div className="flex items-center text-green-600">
