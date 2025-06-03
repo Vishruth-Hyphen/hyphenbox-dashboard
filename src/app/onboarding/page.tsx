@@ -40,7 +40,7 @@ export default function OnboardingPage() {
   };
 
   const handleInstallExtension = () => {
-    window.open('https://chrome.google.com/webstore/detail/hyphenbox-recorder/lpnoadkciihfokjnmijpjhbffbpkgjol', '_blank');
+    window.open('https://chromewebstore.google.com/detail/heolaamdcaoadoacmihafnhegjijopgh?utm_source=item-share-cb', '_blank');
     // Check again after a few seconds
     setTimeout(checkExtensionInstalled, 3000);
   };
