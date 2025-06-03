@@ -58,6 +58,40 @@ async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFl
   }
 }
 
+// Helper function to create organization for new signups
+async function createOrganizationForSignup(userId, signupData) {
+  try {
+    // Create organization
+    const { data: orgData, error: orgError } = await supabase
+      .from('organizations')
+      .insert({
+        name: signupData.companyName,
+        billing_email: null // Will be set later if needed
+      })
+      .select()
+      .single();
+
+    if (orgError) throw orgError;
+
+    // Create organization membership
+    const { error: membershipError } = await supabase
+      .from('organization_members')
+      .insert({
+        organization_id: orgData.id,
+        user_id: userId,
+        role: 'admin' // Creator becomes admin
+      });
+
+    if (membershipError) throw membershipError;
+
+    console.log(`[AUTH_CALLBACK] Created organization "${signupData.companyName}" for user ${userId}`);
+    return orgData.id;
+  } catch (error) {
+    console.error('[AUTH_CALLBACK] Error creating organization:', error);
+    throw error;
+  }
+}
+
 // Minimal Callback Component
 function CallbackContent() {
   const router = useRouter();
@@ -117,9 +151,65 @@ function CallbackContent() {
           return;
         }
 
-        // Process invitations and memberships
+        // Handle new signup flow - check multiple sources for signup data
+        const pendingSignupDataLocal = localStorage.getItem('pendingSignupData');
+        const pendingSignupDataSession = sessionStorage.getItem('pendingSignupData');
+        const authFlowType = sessionStorage.getItem('authFlowType');
+        
+        // Use sessionStorage first (more reliable for single session), then localStorage as fallback
+        const pendingSignupData = pendingSignupDataSession || pendingSignupDataLocal;
+        let isNewSignup = false;
         let membershipCreated = false;
-        if (currentSession?.user?.email) {
+
+        // Check if this is a signup flow through multiple indicators
+        const isSignupFlow = authFlowType === 'signup' || 
+                            (pendingSignupData && JSON.parse(pendingSignupData).isSignup);
+
+        if (isSignupFlow && pendingSignupData) {
+          try {
+            const signupData = JSON.parse(pendingSignupData);
+            console.log('[AUTH_CALLBACK] Processing new signup:', signupData);
+            
+            // Additional validation - check if this is recent (within last 10 minutes)
+            const signupAge = Date.now() - (signupData.timestamp || 0);
+            const isRecentSignup = signupAge < 10 * 60 * 1000; // 10 minutes
+            
+            if (isRecentSignup || !signupData.timestamp) {
+              // Create organization for new signup
+              const organizationId = await createOrganizationForSignup(currentSession.user.id, signupData);
+              
+              // Clean up pending signup data from both storages
+              localStorage.removeItem('pendingSignupData');
+              sessionStorage.removeItem('pendingSignupData');
+              sessionStorage.removeItem('authFlowType');
+              
+              // Set the new organization as selected
+              localStorage.setItem('selectedOrganizationId', organizationId);
+              localStorage.setItem('selectedOrganizationName', signupData.companyName);
+              
+              membershipCreated = true;
+              isNewSignup = true;
+            } else {
+              console.warn('[AUTH_CALLBACK] Signup data too old, treating as regular login');
+              // Clean up old data
+              localStorage.removeItem('pendingSignupData');
+              sessionStorage.removeItem('pendingSignupData');
+              sessionStorage.removeItem('authFlowType');
+            }
+            
+          } catch (error) {
+            console.error('[AUTH_CALLBACK] Error processing signup:', error);
+            // Clean up potentially corrupted data
+            localStorage.removeItem('pendingSignupData');
+            sessionStorage.removeItem('pendingSignupData');
+            sessionStorage.removeItem('authFlowType');
+            router.push('/auth/login?error=signup_processing_failed');
+            return;
+          }
+        }
+
+        // Process existing invitation flow (for non-signup users)
+        if (!membershipCreated && currentSession?.user?.email) {
           const userEmail = currentSession.user.email.toLowerCase().trim();
           const { data: invitations, error: invitationError } = await supabase
             .from('team_invitations')
@@ -159,7 +249,7 @@ function CallbackContent() {
           }
         }
         
-        // Exchange token and redirect for standard flow
+        // Exchange token and redirect based on user type
         if (membershipCreated) {
           // Refresh session again to ensure all claims/data are up-to-date after potential membership changes
           const { data: { session: finalRefreshedSession }, error: finalRefreshError } = await supabase.auth.refreshSession();
@@ -170,11 +260,17 @@ function CallbackContent() {
           }
           
           if (sessionForTokenExchange?.access_token) {
-            await exchangeAndSendTokenToExtension(sessionForTokenExchange.access_token, "StandardFlow_Membership");
+            await exchangeAndSendTokenToExtension(sessionForTokenExchange.access_token, isNewSignup ? "NewSignup" : "StandardFlow_Membership");
           }
           
           await new Promise(resolve => setTimeout(resolve, 300)); // Short delay
-          router.push('/dashboard');
+          
+          // Redirect based on whether this is a new signup
+          if (isNewSignup) {
+            router.push('/onboarding');
+          } else {
+            router.push('/dashboard');
+          }
         } else {
           const isSuperAdmin = ['kushal@hyphenbox.com', 'mail2vishruth@gmail.com'].includes(currentSession?.user?.email || '');
           if (isSuperAdmin) {

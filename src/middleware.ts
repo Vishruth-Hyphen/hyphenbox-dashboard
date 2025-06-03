@@ -47,19 +47,23 @@ export async function middleware(request: NextRequest) {
 
     // --- Route Handling ---
 
-    // Redirect logged-in users away from login page
-    if (session && pathname === '/auth/login') {
+    // Redirect logged-in users away from auth pages
+    if (session && (pathname === '/auth/login' || pathname === '/auth/signup')) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
     // Allow callback route to proceed (Supabase client handles session creation here)
-    // But if a user somehow hits callback while logged in, redirect them
     if (pathname === '/auth/callback') {
        return response; // Return potentially modified response with cookies
     }
 
-    // Protect dashboard routes: redirect to login if no session
-    if (!session && pathname.startsWith('/dashboard')) {
+    // Allow signup route for unauthenticated users
+    if (pathname === '/auth/signup') {
+      return response;
+    }
+
+    // Protect onboarding and dashboard routes: redirect to login if no session
+    if (!session && (pathname.startsWith('/dashboard') || pathname === '/onboarding')) {
       const redirectUrl = new URL('/auth/login', request.url);
       redirectUrl.searchParams.set('returnUrl', pathname);
       return NextResponse.redirect(redirectUrl);
@@ -70,7 +74,7 @@ export async function middleware(request: NextRequest) {
       if (session) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       } else {
-        return NextResponse.redirect(new URL('/auth/login', request.url));
+        return NextResponse.redirect(new URL('/auth/signup', request.url));
       }
     }
 

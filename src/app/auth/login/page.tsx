@@ -18,34 +18,17 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
     try {
-      const { data: existingUser } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
+      // Send magic link to any email - let the callback handle organization logic
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-      const { data: pendingInvite } = await supabase
-        .from('team_invitations')
-        .select('id')
-        .eq('email', email)
-        .eq('status', 'pending')
-        .maybeSingle();
-
-      const userExistsOrInvited = existingUser || pendingInvite;
-
-      if (userExistsOrInvited) {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-
-        if (error) throw error;
-        setMessage("Check your email for the magic link!");
-      } else {
-        setMessage("This email is not authorized for login.");
-      }
+      if (error) throw error;
+      setMessage("Check your email for the magic link!");
+      
     } catch (error) {
       console.error("Error during login:", error);
       setMessage(error instanceof Error ? error.message : "An error occurred");
@@ -97,7 +80,7 @@ export default function LoginPage() {
                 </Button>
               </div>
               {message && (
-                <div className={`text-sm font-medium w-full text-center ${message.includes('Error') || message.includes('not authorized') ? 'text-red-600' : 'text-green-600'}`}>
+                <div className={`text-sm font-medium w-full text-center ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {message}
                 </div>
               )}
@@ -111,9 +94,9 @@ export default function LoginPage() {
           <LinkButton
             variant="brand"
             iconRight="FeatherChevronRight"
-            onClick={() => window.open('https://hyphenbox.com', '_blank')}
+            onClick={() => window.location.href = '/auth/signup'}
           >
-            Try Hyphenbox today
+            Sign up for free
           </LinkButton>
         </div>
       </div>
