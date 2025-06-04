@@ -12,12 +12,15 @@ async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFl
     return false;
   }
   try {
+    console.log(`[AUTH_CALLBACK] ${flowType}: Starting token exchange with API URL: ${process.env.NEXT_PUBLIC_API_URL}`);
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/exchange-supabase-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ supabase_access_token: accessToken }),
     });
 
+    console.log(`[AUTH_CALLBACK] ${flowType}: Token exchange response status: ${response.status}`);
+    
     if (!response.ok) {
       const errorData = await response.json();
       console.error(`[AUTH_CALLBACK] ${flowType}: Error exchanging token:`, errorData.error || response.statusText);
@@ -26,14 +29,15 @@ async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFl
 
     const { hyphenbox_api_token } = await response.json();
     if (hyphenbox_api_token) {
-      console.log(`[AUTH_CALLBACK] ${flowType}: Received hyphenbox_api_token.`);
+      console.log(`[AUTH_CALLBACK] ${flowType}: Received hyphenbox_api_token, attempting to send to extension...`);
       if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-        const EXTENSION_ID = 'lpnoadkciihfokjnmijpjhbffbpkgjol'; // Your extension ID
+        const EXTENSION_ID = process.env.NEXT_PUBLIC_CHROME_EXTENSION_ID; // Use environment variable for extension ID
+        console.log(`[AUTH_CALLBACK] ${flowType}: Sending token to extension ID: ${EXTENSION_ID}`);
         // Return a promise that resolves based on sendMessage callback
         return new Promise((resolve) => {
           chrome.runtime.sendMessage(EXTENSION_ID, { type: 'SET_AUTH_TOKEN', token: hyphenbox_api_token }, (crxResponse) => {
             if (chrome.runtime.lastError) {
-              console.warn(`[AUTH_CALLBACK] ${flowType}: Error sending token to extension:`, chrome.runtime.lastError.message);
+              console.error(`[AUTH_CALLBACK] ${flowType}: Error sending token to extension:`, chrome.runtime.lastError.message);
               resolve(false);
             } else if (crxResponse && crxResponse.success) {
               console.log(`[AUTH_CALLBACK] ${flowType}: Token successfully sent to extension.`);
