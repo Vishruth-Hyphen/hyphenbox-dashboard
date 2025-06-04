@@ -28,7 +28,7 @@ export default function OnboardingPage() {
   const checkExtensionInstalled = () => {
     // Try to send a message to the extension to check if it's installed
     if (typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage) {
-      const EXTENSION_ID = 'lpnoadkciihfokjnmijpjhbffbpkgjol';
+      const EXTENSION_ID = 'heolaamdcaoadoacmihafnhegjijopgh';
       window.chrome.runtime.sendMessage(EXTENSION_ID, { type: 'PING' }, (response: any) => {
         if (window.chrome?.runtime?.lastError) {
           setExtensionInstalled(false);
