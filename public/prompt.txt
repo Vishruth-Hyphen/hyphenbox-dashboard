@@ -1,0 +1,172 @@
+I want you to integrate HyphenBox on to my app.
+
+## What is HyphenBox?
+HyphenBox is a feature tour service that helps you create simple guided tours for your web application. It allows you to:
+- Create step-by-step feature tours that guide users through your interface
+- Build onboarding Checklist for new users
+- Show announcements and updates
+- Provide contextual help and guides
+
+## How HyphenBox Client SDK Works
+The HyphenBox client SDK consists of:
+1. **JavaScript Library**: Can load a default "Help & Guides" button which contains all modules, or allow modules to be triggered individually.
+2. **Three Main Modules**:
+   - **Onboarding**: Shows onboarding checklists and flows
+   - **Copilot**: Main help center with search and all guides
+   - **Announcements**: Coming soon - for product updates and news
+3. One can trigger each module independently too.
+
+## What I Need You To Do
+
+First, you will need to ask the app owner the following question:
+**"Do you want to display the default HyphenBox floating 'Help & Guides' button, or will you be triggering all HyphenBox features using your own custom buttons?"**
+
+Based on their answer, proceed with the implementation:
+
+### 1. Create the HyphenBox Component
+Create a file called `HyphenBox.tsx` in your components directory. This component will be imported and used in the next step. It includes a prop `showDefaultLauncher` to control the visibility of the default floating button.
+
+```tsx
+import React, { useEffect } from 'react';
+
+// TypeScript interface for the component props
+interface HyphenBoxProps {
+  apiKey: string;
+  userId: string;
+  userName: string;
+  showDefaultLauncher: boolean; // Added prop
+}
+
+// TypeScript interface for the global SDK instance
+declare global {
+  interface Window {
+    hyphenSDKInstance: {
+      onboarding: {
+        show: () => void;
+      };
+      copilot: {
+        show: () => void;
+      };
+      viewAllGuides: {
+        show: () => void;
+      };
+    };
+    Hyphenbox: {
+      initialize: (options: {
+        apiKey: string;
+        userId: string;
+        userName: string;
+        useDefaultLauncher?: boolean;
+      }) => typeof window.hyphenSDKInstance;
+    };
+  }
+}
+
+export default function HyphenBox({ apiKey, userId, userName, showDefaultLauncher }: HyphenBoxProps) {
+  useEffect(() => {
+    // Load the HyphenBox SDK script
+    const script = document.createElement('script');
+    script.src = 'https://hyphenbox-clientsdk.pages.dev/flow.js';
+    script.async = true;
+    script.onload = () => {
+      // Initialize HyphenBox when script loads
+      window.hyphenSDKInstance = window.Hyphenbox.initialize({
+        apiKey,
+        userId,
+        userName,
+        useDefaultLauncher: showDefaultLauncher // Use the prop here
+      });
+    };
+    document.body.appendChild(script);
+    
+    // Cleanup function to remove script when component unmounts
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [apiKey, userId, userName, showDefaultLauncher]); // Added showDefaultLauncher to dependencies
+  
+  return null; // This component doesn't render anything visible
+}
+```
+*Note: This example uses TypeScript. If the project uses JavaScript, adapt this component by removing type annotations and using PropTypes if desired.*
+
+### 2. Import and Use the Component Globally
+Import the `HyphenBox` component you just created and add it to your main app file. Common locations include your main App component (`App.tsx`, `App.js`), root layout file (`layout.tsx` in Next.js, `_app.tsx` in Next.js pages), or main index file (`index.tsx`, `index.js`).
+
+When using the component, pass the `showDefaultLauncher` prop based on the app owner's earlier answer:
+
+```tsx
+import HyphenBox from './components/HyphenBox'; // Adjust path
+
+function App() {
+  // const wantsDefaultLauncher = true; // Or false, based on owner's preference
+  // For this example, let's assume they answered 'true' (want default launcher)
+  const showLauncher = true; 
+
+  return (
+    <div>
+      <HyphenBox 
+        apiKey="YOUR_API_KEY_HERE"  // Replace with actual API key
+        userId="user123"            // Replace with dynamic user ID
+        userName="John Doe"          // Replace with dynamic user name
+        showDefaultLauncher={showLauncher}
+      />
+      
+      {/* Your existing app content */}
+      <YourExistingComponents />
+    </div>
+  );
+}
+```
+
+**CRITICAL**: Replace placeholder API key and user data with real values.
+- `apiKey`: Get this from your HyphenBox dashboard.
+- `userId`: Should be a unique identifier for each user (for tracking).
+- `userName`: The user's display name (personalizes the experience).
+
+### 3. Understanding the Result
+- If `showDefaultLauncher` was `true`: A floating "Help & Guides" button appears. Clicking it opens a modal with search, onboarding, and all guides.
+- If `showDefaultLauncher` was `false`: No default button appears. You will need to use custom triggers (see next step).
+
+### 4. Optional: Add Custom Trigger Buttons
+If `showDefaultLauncher` is `false`, or if you want additional entry points even when it's `true`, you can trigger HyphenBox modules from your own UI elements.
+
+Example: A "Get Started" button for onboarding:
+```tsx
+// In any component (Navbar, Hero section, Dashboard, etc.)
+import React from 'react';
+
+export default function YourCustomComponent() {
+  const triggerOnboarding = () => {
+    if (window.hyphenSDKInstance) {
+      window.hyphenSDKInstance.onboarding.show();
+    }
+  };
+
+  return (
+    <div>
+      {/* Your existing component content */}
+      <button onClick={triggerOnboarding}>
+        Get Started
+      </button>
+    </div>
+  );
+}
+```
+Similarly, you can use `window.hyphenSDKInstance.copilot.show()` for the help center or `window.hyphenSDKInstance.viewAllGuides.show()`.
+
+## Summary of Benefits
+- **Flexible Display**: Choose between a default floating button or custom UI triggers.
+- **Modular Access**: Launch onboarding, help center, or all guides independently.
+- **Guided Tours**: Simple, effective step-by-step guidance for users.
+- **User Tracking**: Progress is tracked with the provided user ID.
+
+## Next Steps for Implementation by LLM
+1.  **Confirm Preference**: Ask the app owner if they want the default floating launcher button OR if they plan to use custom buttons for all HyphenBox features. Record their answer for `showDefaultLauncher`.
+2.  **Create Component**: Implement the `HyphenBox.tsx` (or adapted `.js`) component as shown.
+3.  **Integrate Globally**: Add the `<HyphenBox ... />` component to the main app file, passing the correct `showDefaultLauncher` value and ensuring API key/user data are replaced with actual values or clear placeholders for the app owner to fill in.
+4.  **Discuss Custom Triggers**: Ask the app owner: "Do you want to add any custom buttons in your UI to trigger specific HyphenBox features (like Onboarding, Help Center, or View All Guides)? If so, which features and where should these buttons be placed (e.g., in the navbar, a welcome banner, etc.)?"
+
+This prompt should enable seamless integration of HyphenBox into any React application.
