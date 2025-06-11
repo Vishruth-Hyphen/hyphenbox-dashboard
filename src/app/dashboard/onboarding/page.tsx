@@ -21,19 +21,74 @@ import {
 } from '@/utils/onboarding';
 import { supabase } from '@/lib/supabase';
 import * as SubframeCore from "@subframe/core";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
-interface OrgTheme {
-  brand_color?: string;
-  cursor_company_label?: string | null;
-  logo_url?: string | null;
+
+
+// Sortable Item Component for Drag and Drop
+interface SortableFlowItemProps {
+  flowItem: OnboardingChecklistFlowItem;
+  index: number;
+  onRemove: (flowId: string) => void;
+  isSaving: boolean;
+}
+
+function SortableFlowItem({ flowItem, index, onRemove, isSaving }: SortableFlowItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: flowItem.flow_id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 border rounded-md flex justify-between items-center bg-white shadow-sm cursor-grab active:cursor-grabbing ${isDragging ? 'z-50' : ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="flex items-center pointer-events-none">
+        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium mr-4">
+          {index + 1}
+        </div>
+        <span className="text-sm font-medium text-gray-700">
+          {flowItem.cursor_flows?.[0]?.name || 'Flow name missing'}
+        </span>
+      </div>
+      <Button 
+        variant="destructive-tertiary" 
+        size="small" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(flowItem.flow_id);
+        }} 
+        icon="FeatherX"
+        disabled={isSaving}
+        className="pointer-events-auto"
+      />
+    </div>
+  );
 }
 
 const OnboardingWidgetPreview: React.FC<{
   heading: string;
   description: string;
-  logoUrl?: string | null;
   flows: OnboardingChecklistFlowItem[];
-}> = ({ heading, description, logoUrl, flows }) => {
+}> = ({ heading, description, flows }) => {
   return (
     <div 
       className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden"
@@ -47,13 +102,8 @@ const OnboardingWidgetPreview: React.FC<{
         className="flex justify-between items-center px-6 py-4 border-b"
         style={{ borderColor: '#e0e0e0' }}
       >
-        {logoUrl ? (
-          <img src={logoUrl} alt="Logo" className="h-6 rounded" />
-        ) : (
-          <div className="h-6 w-16 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">Logo</div>
-        )}
         <h2 
-          className="text-xl font-semibold flex-grow text-center mx-2"
+          className="text-xl font-semibold flex-grow text-center"
           style={{ color: '#1a1a1a' }}
         >
           {heading || "Welcome!"}
@@ -87,19 +137,11 @@ const OnboardingWidgetPreview: React.FC<{
                   borderColor: index < flows.length - 1 ? '#f0f0f0' : 'transparent'
                 }}
               >
-                {/* Circular checkbox */}
+                {/* Numbered circle */}
                 <div 
-                  className="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 flex-shrink-0"
-                  style={{ 
-                    borderColor: index < 0 ? '#28a745' : '#dee2e6',
-                    backgroundColor: index < 0 ? '#28a745' : 'transparent'
-                  }}
+                  className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mr-4 flex-shrink-0 text-sm font-medium"
                 >
-                  {index < 0 && (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4.5 8.25L2.25 6L1.5 6.75L4.5 9.75L10.5 3.75L9.75 3L4.5 8.25Z" fill="white"/>
-                    </svg>
-                  )}
+                  {index + 1}
                 </div>
                 <span 
                   className="text-sm font-medium"
@@ -147,8 +189,14 @@ function OnboardingPageContent() {
   
   const [widgetHeading, setWidgetHeading] = useState('');
   const [widgetDescription, setWidgetDescription] = useState('');
-  const [customLogoUrl, setCustomLogoUrl] = useState('');
-  const [organizationTheme, setOrganizationTheme] = useState<OrgTheme | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const loadInitialData = useCallback(async (orgId: string) => {
     setIsLoading(true);
@@ -162,7 +210,6 @@ function OnboardingPageContent() {
       setCurrentChecklist(checklist);
       setWidgetHeading(checklist.title_text || 'Welcome to our App!');
       setWidgetDescription(checklist.description || 'Follow these steps to get started.');
-      setCustomLogoUrl(checklist.logo_url || '');
       
       const { flows: checklistFlowsData, error: flowsError } = await getOnboardingChecklistWithFlows(checklist.id);
       if (flowsError) {
@@ -178,28 +225,7 @@ function OnboardingPageContent() {
       } else {
         setAllCursorFlows(allFlowsData || []);
       }
-      
-      try {
-        const themeResponse = await fetch('/api/dashboard/organization-theme'); 
-        if (themeResponse.ok) {
-          const theme = await themeResponse.json();
-          setOrganizationTheme(theme.theme);
-        } else {
-          console.warn('Could not fetch organization theme for logo.');
-          if (currentOrgId) {
-            const { data: orgThemeData, error: dbThemeError } = await supabase
-              .from('organization_themes')
-              .select('logo_url, brand_color, cursor_company_label')
-              .eq('organization_id', currentOrgId)
-              .single();
-            if (!dbThemeError && orgThemeData) {
-              setOrganizationTheme(orgThemeData as OrgTheme);
-            }
-          }
-        }
-      } catch (themeError) {
-        console.warn('Error fetching organization theme:', themeError);
-      }
+
 
     } catch (e: any) {
       setError('An unexpected error occurred: ' + e.message);
@@ -214,148 +240,116 @@ function OnboardingPageContent() {
     }
   }, [currentOrgId, loadInitialData]);
 
-  const handleAddFlowToOnboarding = (flowId: string) => {
-    if (!currentChecklist || !flowId) {
-        setError("Cannot add flow: No active checklist loaded or flow ID missing.");
-        return;
-    }
-    const flowToAdd = allCursorFlows.find(f => f.id === flowId);
-    if (!flowToAdd) {
-        setError("Selected flow not found in available flows.");
-        return;
-    }
-    if (selectedOnboardingFlows.find(f => f.flow_id === flowToAdd.id)) {
-        setSuccessMessage(`Flow "${flowToAdd.name}" is already added.`);
-        setTimeout(() => setSuccessMessage(null), 3000);
-        return; 
-    }
+  // Add flow to onboarding (maintain position ordering)
+  const handleAddFlowToOnboarding = useCallback((flowId: string) => {
+    if (!flowId) return;
     
-    const newItem: OnboardingChecklistFlowItem = {
-      id: 'temp-' + Date.now(), 
-      checklist_id: currentChecklist.id,
-      flow_id: flowToAdd.id,
-      position: selectedOnboardingFlows.length + 1,
-      cursor_flows: [{ id: flowToAdd.id, name: flowToAdd.name, status: flowToAdd.status as any }],
+    const flowExists = selectedOnboardingFlows.some(f => f.flow_id === flowId);
+    if (flowExists) return;
+    
+    const flowData = allCursorFlows.find(f => f.id === flowId);
+    if (!flowData) return;
+    
+    const newPosition = Math.max(...selectedOnboardingFlows.map(f => f.position), 0) + 1;
+    
+    const newFlowItem: OnboardingChecklistFlowItem = {
+      id: 'temp-' + Date.now(),
+      checklist_id: currentChecklist?.id || '',
+      flow_id: flowId,
+      position: newPosition,
+      cursor_flows: [{ id: flowData.id, name: flowData.name, status: flowData.status }]
     };
-    setSelectedOnboardingFlows(prev => [...prev, newItem]);
-  };
+    
+    setSelectedOnboardingFlows(prev => [...prev, newFlowItem].sort((a, b) => a.position - b.position));
+  }, [selectedOnboardingFlows, allCursorFlows, currentChecklist]);
 
-  const handleRemoveFlowFromOnboarding = (flowIdToRemove: string) => {
-    setSelectedOnboardingFlows(prev => prev.filter(f => f.flow_id !== flowIdToRemove)
-      .map((flow, index) => ({ ...flow, position: index + 1 })));
-  };
+  // Remove flow from onboarding
+  const handleRemoveFlowFromOnboarding = useCallback((flowId: string) => {
+    setSelectedOnboardingFlows(prev => prev.filter(f => f.flow_id !== flowId));
+  }, []);
 
-  const handleSaveChanges = async (type: 'flows' | 'appearance') => {
-    if (!currentChecklist || !session?.user?.id) {
-      setError('Cannot save: Missing checklist or user session.');
+  // Handle drag end - reorder flows
+  const handleDragEnd = useCallback((event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setSelectedOnboardingFlows((items) => {
+        const oldIndex = items.findIndex(item => item.flow_id === active.id);
+        const newIndex = items.findIndex(item => item.flow_id === over.id);
+        
+        const reorderedItems = arrayMove(items, oldIndex, newIndex);
+        
+        // Update positions to reflect new order
+        return reorderedItems.map((item, index) => ({
+          ...item,
+          position: index + 1
+        }));
+      });
+    }
+  }, []);
+
+  // Save changes (flows or details)
+  const handleSaveChanges = useCallback(async (type: 'flows' | 'details') => {
+    if (!currentChecklist) {
+      setError('No checklist found to save changes to.');
       return;
     }
+
     setIsSaving(true);
-    setSuccessMessage(null);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (type === 'flows') {
-        const flowItemsToSave = selectedOnboardingFlows.map((f, index) => ({ 
-            flow_id: f.flow_id, 
-            position: index + 1 
+        const flowsToSave = selectedOnboardingFlows.map(item => ({
+          flow_id: item.flow_id,
+          position: item.position
         }));
-        const { success, error: saveFlowsError } = await updateOnboardingChecklistFlows(currentChecklist.id, flowItemsToSave);
-        if (saveFlowsError || !success) {
-          throw saveFlowsError || new Error('Failed to save onboarding flows');
+
+        const { success, error: updateError } = await updateOnboardingChecklistFlows(
+          currentChecklist.id,
+          flowsToSave
+        );
+
+        if (!success) {
+          throw updateError;
         }
-        setSuccessMessage('Onboarding flows updated successfully!');
-      } else if (type === 'appearance') {
-        const appearanceDetails: Partial<OnboardingChecklist> = {
-          title_text: widgetHeading,
-          description: widgetDescription,
-          logo_url: customLogoUrl || null,
-          appearance_settings: {
-            ...(currentChecklist.appearance_settings || {}),
+
+        setSuccessMessage('Onboarding flows saved successfully!');
+      } else if (type === 'details') {
+        const { checklist: updatedChecklist, error: updateError } = await updateOnboardingChecklistDetails(
+          currentChecklist.id,
+          {
+            title_text: widgetHeading,
+            description: widgetDescription,
+            logo_url: null
           }
-        };
-        const { checklist, error: saveDetailsError } = await updateOnboardingChecklistDetails(currentChecklist.id, appearanceDetails);
-        if (saveDetailsError || !checklist) {
-          throw saveDetailsError || new Error('Failed to save appearance settings');
+        );
+
+        if (updateError || !updatedChecklist) {
+          throw updateError;
         }
-        setCurrentChecklist(checklist); 
-        setSuccessMessage('Appearance settings updated successfully!');
+
+        setCurrentChecklist(updatedChecklist);
+        setSuccessMessage('Widget settings saved successfully!');
       }
-      if (type === 'flows' && currentOrgId) {
-          const { flows: checklistFlowsData, error: flowsError } = await getOnboardingChecklistWithFlows(currentChecklist.id);
-          if (!flowsError && checklistFlowsData) {
-            const sortedFlows = (checklistFlowsData || []).sort((a, b) => a.position - b.position);
-            setSelectedOnboardingFlows(sortedFlows);
-          }
-      }
-    } catch (e: any) {
-      setError('Failed to save changes: ' + e.message);
-    } finally {
-      setIsSaving(false);
+
       setTimeout(() => setSuccessMessage(null), 3000);
-    }
-  };
-
-  const availableFlowsForSelect = allCursorFlows.filter(af => !selectedOnboardingFlows.some(sf => sf.flow_id === af.id));
-
-  // Handle logo upload
-  const handleLogoUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!currentOrgId) {
-      setError("Organization ID is missing, cannot upload logo.");
-      return;
-    }
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Reset file input to allow re-uploading the same file name
-    event.target.value = '';
-
-    if (file.type !== "image/svg+xml") {
-      setError("Invalid file type. Please upload an SVG file.");
-      return;
-    }
-
-    setError(null);
-    setIsSaving(true);
-
-    const fileName = `onboarding-${currentOrgId}-${Date.now()}.svg`;
-    const filePath = `${fileName}`;
-
-    try {
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase
-        .storage
-        .from('organization-logos')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: 'image/svg+xml'
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('organization-logos')
-        .getPublicUrl(filePath);
-
-      if (!publicUrlData?.publicUrl) {
-        throw new Error("Could not retrieve public URL for the uploaded logo.");
-      }
-
-      const newLogoUrl = publicUrlData.publicUrl;
-
-      // Update state immediately for better UX
-      setCustomLogoUrl(newLogoUrl);
-
-    } catch (err: any) {
-      console.error('Logo upload error:', err);
-      setError(err.message || 'Failed to upload logo.');
+    } catch (err) {
+      console.error('[OnboardingPage] Error saving changes:', err);
+      setError(err instanceof Error ? err.message : `Failed to save ${type}`);
     } finally {
       setIsSaving(false);
     }
-  }, [currentOrgId]);
+  }, [currentChecklist, selectedOnboardingFlows, widgetHeading, widgetDescription]);
+
+
+
+  // Available flows for selection (excluding already selected ones)
+  const availableFlowsForSelect = allCursorFlows.filter(flow => 
+    !selectedOnboardingFlows.some(selectedFlow => selectedFlow.flow_id === flow.id) &&
+    flow.status === 'live'
+  );
 
   if (isLoading && !currentChecklist) { 
     return <div className="p-12 text-center">Loading onboarding configuration...</div>;
@@ -381,7 +375,7 @@ function OnboardingPageContent() {
       <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 p-6 bg-white rounded-lg shadow">
           <h2 className="text-xl font-semibold text-gray-700 mb-1">1. Configure Onboarding Flows</h2>
-          <p className="text-sm text-gray-500 mb-4">Select flows and arrange them in the order they should appear to your users.</p>
+          <p className="text-sm text-gray-500 mb-4">Select flows and drag them to arrange in the order they should appear to your users.</p>
           
           <div className="mb-6">
             <Select
@@ -411,28 +405,31 @@ function OnboardingPageContent() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-gray-600 mb-3">Selected Onboarding Flows (Order of appearance)</h3>
+            <h3 className="text-lg font-medium text-gray-600 mb-3">Selected Onboarding Flows (Drag to reorder)</h3>
             {isLoading && selectedOnboardingFlows.length === 0 && <p className="text-sm text-gray-500">Loading selected flows...</p>}
             <div className="min-h-[100px] border rounded-md p-2 bg-gray-50 space-y-2">
               {selectedOnboardingFlows.length > 0 ? (
-                selectedOnboardingFlows.map((flowItem, index) => (
-                  <div 
-                    key={flowItem.flow_id || 'sflow-' + index}
-                    className="p-3 border rounded-md flex justify-between items-center bg-white shadow-sm"
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                  modifiers={[restrictToVerticalAxis]}
+                >
+                  <SortableContext 
+                    items={selectedOnboardingFlows.map(item => item.flow_id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <div className="flex items-center">
-                      <IconWithBackground icon="FeatherMove" variant="neutral" size="small" className="mr-3 text-gray-400 cursor-not-allowed" title="Order is based on sequence of addition" />
-                      <span className="text-sm font-medium text-gray-700">{index + 1}. {flowItem.cursor_flows?.[0]?.name || 'Flow name missing'}</span>
-                    </div>
-                    <Button 
-                      variant="destructive-tertiary" 
-                      size="small" 
-                      onClick={() => handleRemoveFlowFromOnboarding(flowItem.flow_id)} 
-                      icon="FeatherX"
-                      disabled={isSaving}
-                    />
-                  </div>
-                ))
+                    {selectedOnboardingFlows.map((flowItem, index) => (
+                      <SortableFlowItem
+                        key={flowItem.flow_id}
+                        flowItem={flowItem}
+                        index={index}
+                        onRemove={handleRemoveFlowFromOnboarding}
+                        isSaving={isSaving}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               ) : (
                 <p className="text-sm text-gray-500 p-2">No flows selected for onboarding. Add from the dropdown above.</p>
               )}
@@ -445,7 +442,7 @@ function OnboardingPageContent() {
 
         <div className="lg:col-span-1 p-6 bg-white rounded-lg shadow">
           <h2 className="text-xl font-semibold text-gray-700 mb-1">2. Customize Onboarding Widget</h2>
-           <p className="text-sm text-gray-500 mb-4">Set the title, description, and logo for the onboarding widget.</p>
+           <p className="text-sm text-gray-500 mb-4">Set the title and description for the onboarding widget.</p>
           <TextField 
             className="w-full mb-4" 
             label="Widget Heading"
@@ -469,58 +466,9 @@ function OnboardingPageContent() {
               disabled={isLoading || isSaving}
             />
           </TextArea>
-          
-          <div className="flex flex-col gap-4 mb-4">
-            <h4 className="text-md font-medium text-gray-600">Onboarding Logo</h4>
-            
-            {/* Display current logo image if URL exists */}
-            {customLogoUrl && (
-              <div className="flex items-center gap-2 mb-2">
-                <img src={customLogoUrl} alt="Onboarding Logo" className="h-16 w-auto max-w-[200px] rounded border p-2 bg-gray-50" />
-              </div>
-            )}
-            
-            {/* Show organization default if no custom logo */}
-            {!customLogoUrl && organizationTheme?.logo_url && (
-              <div className="flex items-center gap-2 mb-2">
-                <img src={organizationTheme.logo_url} alt="Default Organization Logo" className="h-16 w-auto max-w-[200px] rounded border p-2 bg-gray-50" />
-                <span className="text-xs text-gray-500">Using organization default</span>
-              </div>
-            )}
-            
-            {/* File Input for Upload */}
-            <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-blue-700 transition hover:bg-gray-100 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              <SubframeCore.Icon
-                className="text-body font-body"
-                name="FeatherUploadCloud"
-              />
-              <span className="text-sm font-medium">{customLogoUrl ? 'Replace Logo' : 'Upload Custom Logo'}</span>
-              <input
-                type="file"
-                className="hidden"
-                accept="image/svg+xml"
-                onChange={handleLogoUpload}
-                disabled={isSaving}
-              />
-            </label>
-            <span className="text-xs text-gray-500">SVG format required. Leave empty to use organization default logo.</span>
-            
-            {/* Remove custom logo button */}
-            {customLogoUrl && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomLogoUrl('');
-                }}
-                className="text-red-600 text-sm hover:text-red-800 self-start"
-                disabled={isSaving}
-              >
-                Remove custom logo (use organization default)
-              </button>
-            )}
-          </div>
+
           <div className="mt-6 flex justify-end">
-            <Button onClick={() => handleSaveChanges('appearance')} disabled={isLoading || isSaving} loading={isSaving}>Save Appearance</Button>
+            <Button onClick={() => handleSaveChanges('details')} disabled={isLoading || isSaving} loading={isSaving}>Save Appearance</Button>
           </div>
         </div>
       </div>
@@ -532,7 +480,6 @@ function OnboardingPageContent() {
             <OnboardingWidgetPreview 
               heading={widgetHeading}
               description={widgetDescription}
-              logoUrl={customLogoUrl || organizationTheme?.logo_url}
               flows={selectedOnboardingFlows}
             />
           </div>
