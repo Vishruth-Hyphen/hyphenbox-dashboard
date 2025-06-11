@@ -740,8 +740,12 @@ export const generateCursorFlowText = async (
   error?: any;
 }> => {
   try {
-    const response = await fetch(`/api/dashboard/internal/cursorflows/${flowId}/generate-text`, {
+    const response = await fetch(`/api/dashboard/flows/generate-text`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ flowId }),
     });
 
     if (!response.ok) {
@@ -805,7 +809,7 @@ export const triggerEmbeddingGeneration = async (
   error?: any;
 }> => {
   try {
-    const response = await fetch(`/api/dashboard/internal/cursorflows/${flowId}/generate-embeddings`, {
+    const response = await fetch(`/api/dashboard/flows/${flowId}/generate-embedding`, {
       method: 'POST',
     });
 
