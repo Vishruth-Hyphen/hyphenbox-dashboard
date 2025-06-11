@@ -24,6 +24,7 @@ import {
 } from "@/utils/cursorflows";
 import { TextField } from "@/ui/components/TextField";
 import { TextArea } from "@/ui/components/TextArea";
+import { openSidepanelOrFallback } from "@/utils/extension";
 
 // Add interface for the audience type
 interface Audience {
@@ -292,7 +293,13 @@ function CursorFlowsContent() {
               className="h-8 grow shrink-0 basis-0"
               variant="neutral-primary"
               icon="FeatherPlus"
-              onClick={() => setIsUploadDialogOpen(true)}
+              onClick={() => openSidepanelOrFallback(
+                () => setIsUploadDialogOpen(true),
+                () => {
+                  // Optional: Show a message about the extension
+                  console.log('Chrome extension not found, using upload dialog instead');
+                }
+              )}
             >
               Create
             </Button>
