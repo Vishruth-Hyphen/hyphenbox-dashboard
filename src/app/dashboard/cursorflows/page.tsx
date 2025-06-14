@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { Button } from "@/ui/components/Button";
@@ -10,14 +10,12 @@ import * as SubframeCore from "@subframe/core";
 import { IconButton } from "@/ui/components/IconButton";
 import { HomeListItem } from "@/ui/components/HomeListItem";
 import { DialogLayout } from "@/ui/layouts/DialogLayout";
-import { IconWithBackground } from "@/ui/components/IconWithBackground";
 import { type CursorFlow } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useAuth";
 import { 
   fetchCursorFlows, 
   fetchCursorFlowsWithAudiences,
-  processJsonForCursorFlow, 
   getBadgeVariantForStatus,
   deleteCursorFlow,
   createCursorFlowRequest
@@ -45,20 +43,10 @@ function CursorFlowsContent() {
   const { session } = useAuth();
   const { getOrganizationId, currentOrgId, currentOrgName } = useOrganization();
   
-  // State to control the open/closed state of the upload dialog
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   // State to store cursor flows fetched from database
   const [cursorFlows, setCursorFlows] = useState<ExtendedCursorFlow[]>([]);
   // State to track loading status
   const [isLoading, setIsLoading] = useState(true);
-  // State for the flow name
-  const [flowName, setFlowName] = useState("");
-  // Reference to file input
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // State to track file selection
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  // State for loading during upload
-  const [isUploading, setIsUploading] = useState(false);
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [flowToDelete, setFlowToDelete] = useState<CursorFlow | null>(null);
@@ -68,8 +56,7 @@ function CursorFlowsContent() {
   const [requestFlowName, setRequestFlowName] = useState("");
   const [requestFlowContext, setRequestFlowContext] = useState("");
 
-  // Add a new state variable for Flow ID
-  const [flowId, setFlowId] = useState("");
+
 
   // Function to load cursor flows data - update to take organizationId parameter
   const loadCursorFlows = useCallback(async (orgId: string) => {
@@ -100,17 +87,7 @@ function CursorFlowsContent() {
     }
   }, [currentOrgId, loadCursorFlows]); // depend on currentOrgId and loadCursorFlows
 
-  // Function to handle file selection
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      setSelectedFile(event.target.files[0]);
-    }
-  };
 
-  // Function to handle the file upload button click
-  const handleSelectFileClick = () => {
-    fileInputRef.current?.click();
-  };
 
   // Function to navigate to the preview page
   const navigateToPreview = (flowId: string, flowName: string, status: string) => {
@@ -123,60 +100,7 @@ function CursorFlowsContent() {
     router.push(`/dashboard/cursorflows/preview?flowId=${flowId}&name=${encodeURIComponent(flowName)}`);
   };
 
-  // Function to handle the JSON upload
-  const handleUploadJson = async () => {
-    if (!selectedFile || !flowName.trim() || !currentOrgId || !session?.user?.id) {
-      alert('Please select a file and enter a name for the flow. Missing required information.');
-      return;
-    }
 
-    setIsUploading(true);
-    try {
-      const result = await processJsonForCursorFlow(
-        selectedFile,
-        flowName,
-        currentOrgId,
-        session.user.id
-      );
-
-      if (!result.success) {
-        console.error('Error processing cursor flow:', result.error);
-        alert(flowId ? 'Failed to update cursor flow' : 'Failed to create cursor flow');
-        return;
-      }
-
-      // Check text generation status
-      let message = flowId ? 'Flow updated' : 'Flow created';
-      
-      if (result.textGenerated) {
-        message += ` successfully with ${result.textProcessedCount} steps automatically annotated!`;
-      } else if (result.error) {
-        console.warn('Partial success:', result.error);
-        message += ', but some steps may not have been processed correctly.';
-      } else {
-        message += ' successfully!';
-      }
-      
-      alert(message);
-
-      // Refresh the cursor flows list
-      if (currentOrgId) {
-        await loadCursorFlows(currentOrgId);
-      }
-      
-      // Close the dialog and reset state
-      setIsUploadDialogOpen(false);
-      setSelectedFile(null);
-      setFlowName("");
-      setFlowId("");
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('Failed to ' + (flowId ? 'update' : 'upload') + ' and process JSON');
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   // Function to handle delete button click
   const handleDeleteClick = (e: React.MouseEvent, flow: CursorFlow) => {
@@ -294,10 +218,11 @@ function CursorFlowsContent() {
               variant="neutral-primary"
               icon="FeatherPlus"
               onClick={() => openSidepanelOrFallback(
-                () => setIsUploadDialogOpen(true),
+                () => {}, // Do nothing on success - extension handles it
                 () => {
-                  // Optional: Show a message about the extension
-                  console.log('Chrome extension not found, using upload dialog instead');
+                  // If extension not found, redirect to Chrome Web Store
+                  const EXTENSION_INSTALL_URL = 'https://chromewebstore.google.com/detail/heolaamdcaoadoacmihafnhegjijopgh';
+                  window.open(EXTENSION_INSTALL_URL, '_blank');
                 }
               )}
             >
@@ -413,98 +338,7 @@ function CursorFlowsContent() {
         </div>
       </div>
 
-      {/* JSON Upload Dialog */}
-      <DialogLayout open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-        <div className="flex h-full w-full flex-col items-start gap-6 px-6 py-6">
-          <div className="flex w-full items-start justify-between">
-            <div className="flex grow shrink-0 basis-0 flex-col items-start gap-1">
-              <span className="text-heading-3 font-heading-3 text-default-font">
-                Upload JSON File
-              </span>
-              <span className="text-body font-body text-subtext-color">
-                Select a JSON file to upload and process
-              </span>
-            </div>
-            <SubframeCore.Icon
-              className="text-body font-body text-neutral-500 cursor-pointer"
-              name="FeatherX"
-              onClick={() => setIsUploadDialogOpen(false)}
-            />
-          </div>
-          
-          {/* Flow name input */}
-          <div className="w-full">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Flow Name
-            </label>
-            <input
-              type="text"
-              value={flowName}
-              onChange={(e) => setFlowName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-500 focus:border-brand-500"
-              placeholder="Enter flow name"
-            />
-          </div>
-          
-          {/* Optional Flow ID input */}
-          <div className="w-full">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Flow ID (Optional)
-            </label>
-            <input
-              type="text"
-              value={flowId}
-              onChange={(e) => setFlowId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-500 focus:border-brand-500"
-              placeholder="Provide existing Flow ID to update"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              If provided, this will update an existing flow instead of creating a new one
-            </p>
-          </div>
-          
-          <div className="flex w-full flex-col items-center justify-center gap-4 rounded-md bg-neutral-50 px-12 py-12">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept=".json"
-              className="hidden"
-            />
-            <div className="flex flex-col items-center justify-center gap-4 px-4 py-4">
-              <IconWithBackground size="large" icon="FeatherUpload" />
-              <span className="text-body font-body text-subtext-color text-center">
-                {selectedFile ? selectedFile.name : "Drag file here or"}
-              </span>
-            </div>
-            <Button
-              variant="brand-tertiary"
-              onClick={handleSelectFileClick}
-            >
-              Select JSON file
-            </Button>
-          </div>
-          <div className="flex w-full items-center justify-end gap-2">
-            <Button
-              variant="neutral-tertiary"
-              onClick={() => {
-                setIsUploadDialogOpen(false);
-                setSelectedFile(null);
-                setFlowName("");
-                setFlowId("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUploadJson} 
-              disabled={isUploading || !selectedFile || !flowName.trim()}
-            >
-              {isUploading ? "Uploading..." : flowId ? "Update Flow" : "Create Flow"}
-            </Button>
-          </div>
-        </div>
-      </DialogLayout>
+
 
       {/* Delete Confirmation Dialog */}
       <DialogLayout open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
