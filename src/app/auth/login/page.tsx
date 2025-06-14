@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TextField } from "@/ui/components/TextField";
 import { Button } from "@/ui/components/Button";
 import { LinkButton } from "@/ui/components/LinkButton";
@@ -11,6 +11,21 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Handle incoming parameters from signup redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailParam = urlParams.get('email');
+    const messageParam = urlParams.get('message');
+    
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+    
+    if (messageParam) {
+      setMessage(messageParam);
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -18,20 +33,7 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
     try {
-      // Check if there's a pending signup for this email
-      const { data: pendingOrg } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .eq('billing_email', email)
-        .maybeSingle();
-
-      if (pendingOrg) {
-        setMessage(`There's already a signup in progress for ${email}. Please check your email for the signup link.`);
-        setLoading(false);
-        return;
-      }
-
-      // Send magic link to any email - let the callback handle organization logic
+      // Send magic link - let the callback handle organization logic
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {

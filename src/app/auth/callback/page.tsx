@@ -124,7 +124,6 @@ function CallbackContent() {
         }
 
         // Handle new signup flow - check URL params and database for organization
-        const urlParams = new URLSearchParams(window.location.search);
         const orgIdFromUrl = urlParams.get('org_id');
         const isSignupFromUrl = urlParams.get('signup') === 'true';
         
@@ -164,11 +163,7 @@ function CallbackContent() {
               throw membershipError;
             }
 
-            // Clear the billing_email now that user is linked
-            await supabase
-              .from('organizations')
-              .update({ billing_email: null })
-              .eq('id', organization.id);
+            // Keep billing_email for reference - no need to clear it
 
             // Set the new organization as selected
             localStorage.setItem('selectedOrganizationId', organization.id);
@@ -208,11 +203,7 @@ function CallbackContent() {
               if (membershipError && membershipError.code !== '23505') { // Ignore duplicate key error
                 console.error('[AUTH_CALLBACK] Error creating membership:', membershipError);
               } else {
-                // Clear the billing_email now that user is linked
-                await supabase
-                  .from('organizations')
-                  .update({ billing_email: null })
-                  .eq('id', pendingOrg.id);
+                // Keep billing_email for reference - no need to clear it
 
                 // Set the organization as selected
                 localStorage.setItem('selectedOrganizationId', pendingOrg.id);

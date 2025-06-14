@@ -35,20 +35,11 @@ export default function SignupPage() {
         .maybeSingle();
 
       if (existingUser) {
-        setMessage("An account with this email already exists. Please use the login page.");
-        setLoading(false);
-        return;
-      }
-
-      // Check if organization with this billing email already exists
-      const { data: existingOrg } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('billing_email', formData.email)
-        .maybeSingle();
-
-      if (existingOrg) {
-        setMessage("A signup is already in progress for this email. Please check your inbox for the magic link.");
+        // Automatically redirect existing users to login page
+        setMessage("Redirecting you to login...");
+        setTimeout(() => {
+          window.location.href = `/auth/login?email=${encodeURIComponent(formData.email)}&message=${encodeURIComponent('Account found! Please sign in.')}`;
+        }, 1500);
         setLoading(false);
         return;
       }
