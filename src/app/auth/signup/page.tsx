@@ -40,29 +40,55 @@ export default function SignupPage() {
         return;
       }
 
-      // Store signup data in both localStorage and sessionStorage for redundancy
-      const signupData = {
-        companyName: formData.companyName,
-        companyWebsite: formData.companyWebsite,
-        isSignup: true,
-        timestamp: Date.now()
-      };
-      
-      localStorage.setItem('pendingSignupData', JSON.stringify(signupData));
-      sessionStorage.setItem('pendingSignupData', JSON.stringify(signupData));
-      
-      // Also set a flag to indicate this is a signup flow
-      sessionStorage.setItem('authFlowType', 'signup');
+      // Check if organization with this billing email already exists
+      const { data: existingOrg } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('billing_email', formData.email)
+        .maybeSingle();
 
-      // Send magic link without source parameter to avoid Supabase redirect URL issues
+      if (existingOrg) {
+        setMessage("A signup is already in progress for this email. Please check your inbox for the magic link.");
+        setLoading(false);
+        return;
+      }
+
+      // Create organization immediately
+      const { data: organization, error: orgError } = await supabase
+        .from('organizations')
+        .insert([
+          {
+            name: formData.companyName,
+            billing_email: formData.email,
+          }
+        ])
+        .select('id')
+        .single();
+
+      if (orgError) {
+        console.error('Error creating organization:', orgError);
+        throw new Error('Failed to create organization. Please try again.');
+      }
+
+      console.log('Created organization:', organization);
+
+      // Send magic link with organization reference
       const { error } = await supabase.auth.signInWithOtp({
         email: formData.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?org_id=${organization.id}&signup=true`,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // If magic link fails, clean up the organization
+        await supabase
+          .from('organizations')
+          .delete()
+          .eq('id', organization.id);
+        throw error;
+      }
+
       setMessage("Check your email for the magic link to complete your signup!");
       
     } catch (error) {
@@ -161,7 +187,7 @@ export default function SignupPage() {
               </Button>
               
               {message && (
-                <div className={`text-sm font-medium w-full text-center ${message.includes('Error') || message.includes('already exists') ? 'text-red-600' : 'text-green-600'}`}>
+                <div className={`text-sm font-medium w-full text-center ${message.includes('Error') || message.includes('already exists') || message.includes('already in progress') ? 'text-red-600' : 'text-green-600'}`}>
                   {message}
                 </div>
               )}

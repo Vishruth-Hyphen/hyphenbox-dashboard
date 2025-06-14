@@ -18,6 +18,19 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
     try {
+      // Check if there's a pending signup for this email
+      const { data: pendingOrg } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .eq('billing_email', email)
+        .maybeSingle();
+
+      if (pendingOrg) {
+        setMessage(`There's already a signup in progress for ${email}. Please check your email for the signup link.`);
+        setLoading(false);
+        return;
+      }
+
       // Send magic link to any email - let the callback handle organization logic
       const { error } = await supabase.auth.signInWithOtp({
         email,

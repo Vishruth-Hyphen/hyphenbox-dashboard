@@ -62,39 +62,7 @@ async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFl
   }
 }
 
-// Helper function to create organization for new signups
-async function createOrganizationForSignup(userId, signupData) {
-  try {
-    // Create organization
-    const { data: orgData, error: orgError } = await supabase
-      .from('organizations')
-      .insert({
-        name: signupData.companyName,
-        billing_email: null // Will be set later if needed
-      })
-      .select()
-      .single();
 
-    if (orgError) throw orgError;
-
-    // Create organization membership
-    const { error: membershipError } = await supabase
-      .from('organization_members')
-      .insert({
-        organization_id: orgData.id,
-        user_id: userId,
-        role: 'admin' // Creator becomes admin
-      });
-
-    if (membershipError) throw membershipError;
-
-    console.log(`[AUTH_CALLBACK] Created organization "${signupData.companyName}" for user ${userId}`);
-    return orgData.id;
-  } catch (error) {
-    console.error('[AUTH_CALLBACK] Error creating organization:', error);
-    throw error;
-  }
-}
 
 // Minimal Callback Component
 function CallbackContent() {
@@ -155,60 +123,107 @@ function CallbackContent() {
           return;
         }
 
-        // Handle new signup flow - check multiple sources for signup data
-        const pendingSignupDataLocal = localStorage.getItem('pendingSignupData');
-        const pendingSignupDataSession = sessionStorage.getItem('pendingSignupData');
-        const authFlowType = sessionStorage.getItem('authFlowType');
+        // Handle new signup flow - check URL params and database for organization
+        const urlParams = new URLSearchParams(window.location.search);
+        const orgIdFromUrl = urlParams.get('org_id');
+        const isSignupFromUrl = urlParams.get('signup') === 'true';
         
-        // Use sessionStorage first (more reliable for single session), then localStorage as fallback
-        const pendingSignupData = pendingSignupDataSession || pendingSignupDataLocal;
         let isNewSignup = false;
         let membershipCreated = false;
 
-        // Check if this is a signup flow through multiple indicators
-        const isSignupFlow = authFlowType === 'signup' || 
-                            (pendingSignupData && JSON.parse(pendingSignupData).isSignup);
-
-        if (isSignupFlow && pendingSignupData) {
+        // Check if this is a signup flow with organization ID in URL
+        if (isSignupFromUrl && orgIdFromUrl) {
           try {
-            const signupData = JSON.parse(pendingSignupData);
-            console.log('[AUTH_CALLBACK] Processing new signup:', signupData);
+            console.log('[AUTH_CALLBACK] Processing new signup with org_id:', orgIdFromUrl);
             
-            // Additional validation - check if this is recent (within last 10 minutes)
-            const signupAge = Date.now() - (signupData.timestamp || 0);
-            const isRecentSignup = signupAge < 10 * 60 * 1000; // 10 minutes
-            
-            if (isRecentSignup || !signupData.timestamp) {
-              // Create organization for new signup
-              const organizationId = await createOrganizationForSignup(currentSession.user.id, signupData);
-              
-              // Clean up pending signup data from both storages
-              localStorage.removeItem('pendingSignupData');
-              sessionStorage.removeItem('pendingSignupData');
-              sessionStorage.removeItem('authFlowType');
-              
-              // Set the new organization as selected
-              localStorage.setItem('selectedOrganizationId', organizationId);
-              localStorage.setItem('selectedOrganizationName', signupData.companyName);
-              
-              membershipCreated = true;
-              isNewSignup = true;
-            } else {
-              console.warn('[AUTH_CALLBACK] Signup data too old, treating as regular login');
-              // Clean up old data
-              localStorage.removeItem('pendingSignupData');
-              sessionStorage.removeItem('pendingSignupData');
-              sessionStorage.removeItem('authFlowType');
+            // Verify the organization exists and belongs to this user's email
+            const { data: organization, error: orgError } = await supabase
+              .from('organizations')
+              .select('id, name, billing_email')
+              .eq('id', orgIdFromUrl)
+              .eq('billing_email', currentSession.user.email)
+              .single();
+
+            if (orgError || !organization) {
+              console.error('[AUTH_CALLBACK] Organization not found or email mismatch:', orgError);
+              router.push('/auth/login?error=invalid_organization');
+              return;
             }
+
+            // Create organization membership for the user
+            const { error: membershipError } = await supabase
+              .from('organization_members')
+              .insert({
+                organization_id: organization.id,
+                user_id: currentSession.user.id,
+                role: 'admin' // Signup user becomes admin
+              });
+
+            if (membershipError && membershipError.code !== '23505') { // Ignore duplicate key error
+              console.error('[AUTH_CALLBACK] Error creating membership:', membershipError);
+              throw membershipError;
+            }
+
+            // Clear the billing_email now that user is linked
+            await supabase
+              .from('organizations')
+              .update({ billing_email: null })
+              .eq('id', organization.id);
+
+            // Set the new organization as selected
+            localStorage.setItem('selectedOrganizationId', organization.id);
+            localStorage.setItem('selectedOrganizationName', organization.name);
+            
+            membershipCreated = true;
+            isNewSignup = true;
+            
+            console.log(`[AUTH_CALLBACK] Successfully linked user to organization: ${organization.name}`);
             
           } catch (error) {
             console.error('[AUTH_CALLBACK] Error processing signup:', error);
-            // Clean up potentially corrupted data
-            localStorage.removeItem('pendingSignupData');
-            sessionStorage.removeItem('pendingSignupData');
-            sessionStorage.removeItem('authFlowType');
             router.push('/auth/login?error=signup_processing_failed');
             return;
+          }
+        } else {
+          // Fallback: Check for organization by billing_email (in case URL params are lost)
+          if (currentSession?.user?.email) {
+            const { data: pendingOrg, error: pendingOrgError } = await supabase
+              .from('organizations')
+              .select('id, name, billing_email')
+              .eq('billing_email', currentSession.user.email)
+              .maybeSingle();
+
+            if (pendingOrg && !pendingOrgError) {
+              console.log('[AUTH_CALLBACK] Found pending organization for user email, linking...');
+              
+              // Create organization membership
+              const { error: membershipError } = await supabase
+                .from('organization_members')
+                .insert({
+                  organization_id: pendingOrg.id,
+                  user_id: currentSession.user.id,
+                  role: 'admin'
+                });
+
+              if (membershipError && membershipError.code !== '23505') { // Ignore duplicate key error
+                console.error('[AUTH_CALLBACK] Error creating membership:', membershipError);
+              } else {
+                // Clear the billing_email now that user is linked
+                await supabase
+                  .from('organizations')
+                  .update({ billing_email: null })
+                  .eq('id', pendingOrg.id);
+
+                // Set the organization as selected
+                localStorage.setItem('selectedOrganizationId', pendingOrg.id);
+                localStorage.setItem('selectedOrganizationName', pendingOrg.name);
+                
+                membershipCreated = true;
+                isNewSignup = true;
+                
+                console.log(`[AUTH_CALLBACK] Successfully linked user to pending organization: ${pendingOrg.name}`);
+              }
+            }
           }
         }
 
