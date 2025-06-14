@@ -70,12 +70,14 @@ export function useOrganization() {
     // For regular users, use their selected organization from session
     if (session?.selectedOrganizationId) return session.selectedOrganizationId;
     
-    // If session not loaded yet but user is logged in, check localStorage
-    try {
-      const savedOrgId = localStorage.getItem('selectedOrganizationId');
-      if (savedOrgId) return savedOrgId;
-    } catch (e) {
-      console.error('Error reading selectedOrganizationId from localStorage:', e);
+    // If session not loaded yet but user is logged in, check localStorage (only in browser)
+    if (typeof window !== 'undefined') {
+      try {
+        const savedOrgId = localStorage.getItem('selectedOrganizationId');
+        if (savedOrgId) return savedOrgId;
+      } catch (e) {
+        console.error('Error reading selectedOrganizationId from localStorage:', e);
+      }
     }
     
     // If all else fails, redirect to org selection for super admin
@@ -95,13 +97,17 @@ export function useOrganization() {
     // First check local state
     if (currentOrgName) return currentOrgName;
     
-    // Then fall back to localStorage
-    try {
-      return localStorage.getItem('selectedOrganizationName');
-    } catch (e) {
-      console.error('Error reading selectedOrganizationName from localStorage:', e);
-      return null;
+    // Then fall back to localStorage (only in browser)
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('selectedOrganizationName');
+      } catch (e) {
+        console.error('Error reading selectedOrganizationName from localStorage:', e);
+        return null;
+      }
     }
+    
+    return null;
   }, [currentOrgName]);
 
   /**
