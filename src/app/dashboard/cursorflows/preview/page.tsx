@@ -63,6 +63,10 @@ function CursorFlowPreviewContent() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState(false);
+  
+  // State for AI text generation
+  const [isGeneratingText, setIsGeneratingText] = useState(false);
+  const [textGenerationProgress, setTextGenerationProgress] = useState(0);
 
   // Add state for tracking drag operations
   const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
@@ -80,6 +84,115 @@ function CursorFlowPreviewContent() {
       setIsLoading(false);
     }
   }, [flowId]);
+
+  // Function to check if text generation is needed and trigger it
+  const checkAndTriggerTextGeneration = async (flowData: any) => {
+    try {
+      // Check if AI generation has already been attempted for this flow
+      if (flowData.ai_generation_attempted) {
+        console.log('[TEXT_GENERATION] AI generation already attempted for this flow');
+        return;
+      }
+      
+      console.log('[TEXT_GENERATION] Flow needs AI text generation');
+      
+      setIsGeneratingText(true);
+      setTextGenerationProgress(0);
+      
+      // Call API to start text generation
+      const response = await fetch('/api/dashboard/flows/generate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flowId: flowData.id })
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        console.error('[TEXT_GENERATION] Failed to start text generation:', result.error);
+        setIsGeneratingText(false);
+        return;
+      }
+      
+      if (result.alreadyComplete) {
+        console.log('[TEXT_GENERATION] Text generation already complete');
+        setIsGeneratingText(false);
+        return;
+      }
+      
+      console.log(`[TEXT_GENERATION] Started text generation for ${result.stepsToProcess} steps`);
+      
+      // Start polling for completion
+      pollTextGenerationStatus(flowData.id);
+      
+    } catch (error) {
+      console.error('[TEXT_GENERATION] Error triggering text generation:', error);
+      setIsGeneratingText(false);
+    }
+  };
+  
+  // Function to poll text generation status
+  const pollTextGenerationStatus = async (flowId: string) => {
+    try {
+      const response = await fetch(`/api/dashboard/flows/${flowId}/text-generation-status`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        console.error('[TEXT_GENERATION] Error checking status:', result.error);
+        setIsGeneratingText(false);
+        return;
+      }
+      
+      setTextGenerationProgress(result.progress);
+      
+             if (result.isComplete) {
+         console.log(`[TEXT_GENERATION] Text generation complete! ${result.completedSteps}/${result.totalSteps} steps processed`);
+         setIsGeneratingText(false);
+         
+         // Reload the flow data to get the updated annotation texts
+         await reloadFlowData(flowId);
+         
+         setSuccessMessage('AI tooltips generated successfully!');
+         setTimeout(() => setSuccessMessage(null), 3000);
+       } else {
+        console.log(`[TEXT_GENERATION] Progress: ${result.completedSteps}/${result.totalSteps} (${result.progress}%)`);
+        // Continue polling
+        setTimeout(() => pollTextGenerationStatus(flowId), 2000);
+      }
+      
+    } catch (error) {
+      console.error('[TEXT_GENERATION] Error polling status:', error);
+      setIsGeneratingText(false);
+    }
+  };
+  
+  // Function to reload flow data (used after text generation completes)
+  const reloadFlowData = async (id: string) => {
+    try {
+      const { flow: flowData, steps: stepsData, error: apiError } = await getCursorFlowWithSteps(id);
+      
+      if (apiError) {
+        console.error('Failed to reload flow data:', apiError);
+        return;
+      }
+
+      if (stepsData) {
+        setSteps(stepsData);
+        
+        // Update step text state with new annotation texts
+        const textMap: {[key: string]: string} = {};
+        stepsData.forEach(step => {
+          textMap[step.id] = step.annotation_text || '';
+          if (step.is_highlight_step === undefined) {
+            step.is_highlight_step = false;
+          }
+        });
+        setStepTexts(textMap);
+      }
+    } catch (error) {
+      console.error('Error reloading flow data:', error);
+    }
+  };
 
   // Function to load cursor flow data
   const loadCursorFlow = async (id: string) => {
@@ -107,6 +220,9 @@ function CursorFlowPreviewContent() {
           }
         });
         setStepTexts(textMap);
+        
+        // Check if we need to trigger text generation
+        await checkAndTriggerTextGeneration(flowData);
       }
       // Initialize flow description state
       setFlowDescription(flowData?.description || '');
@@ -849,6 +965,24 @@ function CursorFlowPreviewContent() {
           />
         )}
         
+        {isGeneratingText && (
+          <Alert
+            title={`Generating AI tooltips... ${textGenerationProgress}%`}
+            description="AI is analyzing screenshots to create helpful tooltips for each step."
+            actions={
+              <div className="flex items-center gap-2">
+                <div className="w-32 bg-neutral-200 rounded-full h-2">
+                  <div 
+                    className="bg-brand-600 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${textGenerationProgress}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm text-subtext-color">{textGenerationProgress}%</span>
+              </div>
+            }
+          />
+        )}
+        
         <div className="flex w-full grow shrink-0 basis-0 flex-wrap items-start">
           <div className="w-full pb-4">
             <div className="flex w-full items-center justify-between border-b border-solid border-neutral-border py-3">
@@ -944,22 +1078,34 @@ function CursorFlowPreviewContent() {
                       <div className="flex w-full flex-col items-start gap-4 px-4 py-4">
                         <TextField
                           label="Cursor Text"
-                          helpText=""
+                          helpText={isGeneratingText ? "AI is generating tooltip..." : ""}
                           icon="FeatherMousePointer2"
                           className="w-full"
                         >
                           <TextField.Input
-                            placeholder="Add a description for this click"
-                            value={stepTexts[clickStep.id] || ''}
+                            placeholder={
+                              isGeneratingText 
+                                ? "AI is generating tooltip..." 
+                                : "Add a description for this click"
+                            }
+                            value={
+                              isGeneratingText && !stepTexts[clickStep.id]
+                                ? "Generating..." 
+                                : (stepTexts[clickStep.id] || '')
+                            }
                             onChange={(e) => {
-                              if (flow.status === 'draft') {
+                              if (flow.status === 'draft' && !isGeneratingText) {
                                 handleTextChange(clickStep.id, e.target.value);
                               }
                             }}
-                            onBlur={() => flow.status === 'draft' ? saveAnnotation(clickStep.id) : null}
-                            disabled={flow.status !== 'draft'}
-                            readOnly={flow.status !== 'draft'}
-                            className="w-full"
+                            onBlur={() => {
+                              if (flow.status === 'draft' && !isGeneratingText) {
+                                saveAnnotation(clickStep.id);
+                              }
+                            }}
+                            disabled={flow.status !== 'draft' || isGeneratingText}
+                            readOnly={flow.status !== 'draft' || isGeneratingText}
+                            className={`w-full ${isGeneratingText && !stepTexts[clickStep.id] ? 'animate-pulse bg-neutral-50' : ''}`}
                           />
                         </TextField>
                       </div>
