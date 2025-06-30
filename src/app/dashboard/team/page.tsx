@@ -16,6 +16,12 @@ import { format } from "date-fns";
 import { Breadcrumbs } from "@/ui/components/Breadcrumbs";
 import { DialogLayout } from "@/ui/layouts/DialogLayout";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  console.error("CRITICAL: NEXT_PUBLIC_API_URL is not defined. API calls will fail.");
+}
+
 type Invitation = {
   id: string;
   email: string;
@@ -116,8 +122,12 @@ function TeamContent() {
     setError(null);
     
     try {
+      if (!API_BASE_URL) {
+        throw new Error('API base URL not configured');
+      }
+      
       // Use the server API endpoint instead of directly using Supabase
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/dashboard/team/invite`, {
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/team/invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

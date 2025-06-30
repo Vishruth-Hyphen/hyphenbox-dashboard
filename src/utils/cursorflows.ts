@@ -4,6 +4,8 @@ import {
   createCursorFlowSteps as createSteps 
 } from "./cursorflowsteps";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 // Add interface for the nested audience data structure
 interface AudienceFlow {
   audience: {
@@ -740,7 +742,11 @@ export const generateCursorFlowText = async (
   error?: any;
 }> => {
   try {
-    const response = await fetch(`/api/dashboard/flows/generate-text`, {
+    if (!API_BASE_URL) {
+      throw new Error('API base URL not configured');
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/generate-text`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -809,7 +815,11 @@ export const triggerEmbeddingGeneration = async (
   error?: any;
 }> => {
   try {
-    const response = await fetch(`/api/dashboard/flows/${flowId}/generate-embedding`, {
+    if (!API_BASE_URL) {
+      throw new Error('API base URL not configured');
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/${flowId}/generate-embedding`, {
       method: 'POST',
     });
 

@@ -38,6 +38,12 @@ import {
   getCursorPositionPercentage
 } from "@/utils/element-utils";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  console.error("CRITICAL: NEXT_PUBLIC_API_URL is not defined. API calls will fail.");
+}
+
 // Placeholder image when no screenshot is available
 // const PLACEHOLDER_IMAGE = "https://gazvscvowgdojkbkxnmk.supabase.co/storage/v1/object/public/screenshots//Screenshot%202025-03-19%20at%209.47.29%20PM.png";
 
@@ -94,13 +100,18 @@ function CursorFlowPreviewContent() {
         return;
       }
       
+      if (!API_BASE_URL) {
+        console.error('[TEXT_GENERATION] API base URL not configured');
+        return;
+      }
+      
       console.log('[TEXT_GENERATION] Flow needs AI text generation');
       
       setIsGeneratingText(true);
       setTextGenerationProgress(0);
       
       // Call API to start text generation
-      const response = await fetch('/api/dashboard/flows/generate-text', {
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/generate-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ flowId: flowData.id })
@@ -134,7 +145,13 @@ function CursorFlowPreviewContent() {
   // Function to poll text generation status
   const pollTextGenerationStatus = async (flowId: string) => {
     try {
-      const response = await fetch(`/api/dashboard/flows/${flowId}/text-generation-status`);
+      if (!API_BASE_URL) {
+        console.error('[TEXT_GENERATION] API base URL not configured');
+        setIsGeneratingText(false);
+        return;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/${flowId}/text-generation-status`);
       const result = await response.json();
       
       if (!result.success) {
@@ -770,8 +787,13 @@ function CursorFlowPreviewContent() {
   // Replace the existing saveCursorPosition function with this one
   const saveCursorPosition = async (stepId: string, position: { x: number, y: number }) => {
     try {
+      if (!API_BASE_URL) {
+        console.error('API base URL not configured');
+        return { success: false, error: 'API base URL not configured' };
+      }
+      
       // Use the dedicated columns instead of updating the step_data JSONB
-      const response = await fetch(`/api/cursorflow-steps/${stepId}/position`, {
+      const response = await fetch(`${API_BASE_URL}/api/cursorflow-steps/${stepId}/position`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -5,6 +5,12 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  console.error("CRITICAL: NEXT_PUBLIC_API_URL is not defined. API calls will fail.");
+}
+
 // Helper function to exchange Supabase token for hyphenbox_api_token and send to extension
 async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFlow") {
   if (!accessToken) {
@@ -12,8 +18,13 @@ async function exchangeAndSendTokenToExtension(accessToken, flowType = "NormalFl
     return false;
   }
   try {
-    console.log(`[AUTH_CALLBACK] ${flowType}: Starting token exchange with API URL: ${process.env.NEXT_PUBLIC_API_URL}`);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/exchange-supabase-token`, {
+    if (!API_BASE_URL) {
+      console.error(`[AUTH_CALLBACK] ${flowType}: API base URL not configured`);
+      return false;
+    }
+    
+    console.log(`[AUTH_CALLBACK] ${flowType}: Starting token exchange with API URL: ${API_BASE_URL}`);
+    const response = await fetch(`${API_BASE_URL}/api/auth/exchange-supabase-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ supabase_access_token: accessToken }),
