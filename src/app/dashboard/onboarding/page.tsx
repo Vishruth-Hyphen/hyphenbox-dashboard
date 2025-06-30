@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Breadcrumbs } from '@/ui/components/Breadcrumbs';
 import { Button } from '@/ui/components/Button';
+import { IconButton } from '@/ui/components/IconButton';
 import { IconWithBackground } from '@/ui/components/IconWithBackground';
 import { TextField } from '@/ui/components/TextField';
 import { TextArea } from '@/ui/components/TextArea';
@@ -54,14 +55,14 @@ function SortableFlowItem({ flowItem, index, onRemove, isSaving }: SortableFlowI
   };
 
   return (
-    <div 
-      ref={setNodeRef}
-      style={style}
-      className={`p-3 border rounded-md flex justify-between items-center bg-white shadow-sm cursor-grab active:cursor-grabbing ${isDragging ? 'z-50' : ''}`}
-      {...attributes}
-      {...listeners}
-    >
-      <div className="flex items-center pointer-events-none">
+    <div className="flex items-center gap-2">
+      <div 
+        ref={setNodeRef}
+        style={style}
+        className={`flex-1 p-3 border rounded-md flex items-center bg-white shadow-sm cursor-grab active:cursor-grabbing ${isDragging ? 'z-50' : ''}`}
+        {...attributes}
+        {...listeners}
+      >
         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium mr-4">
           {index + 1}
         </div>
@@ -69,16 +70,13 @@ function SortableFlowItem({ flowItem, index, onRemove, isSaving }: SortableFlowI
           {flowItem.cursor_flows?.[0]?.name || 'Flow name missing'}
         </span>
       </div>
-      <Button 
-        variant="destructive-tertiary" 
-        size="small" 
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(flowItem.flow_id);
-        }} 
-        icon="FeatherX"
+      <IconButton
+        icon="FeatherTrash2"
+        variant="destructive-secondary"
+        onClick={() => onRemove(flowItem.flow_id)}
         disabled={isSaving}
-        className="pointer-events-auto"
+        aria-label="Delete flow"
+        className="flex-shrink-0"
       />
     </div>
   );
