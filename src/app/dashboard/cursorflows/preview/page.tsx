@@ -8,7 +8,6 @@ import { Button } from "@/ui/components/Button";
 import { IconButton } from "@/ui/components/IconButton";
 import { Alert } from "@/ui/components/Alert";
 import { TextField } from "@/ui/components/TextField";
-import { DropdownMenu } from "@/ui/components/DropdownMenu";
 import * as SubframeCore from "@subframe/core";
 import { TextArea } from "@/ui/components/TextArea";
 import { Switch } from "@/ui/components/Switch";
@@ -70,8 +69,8 @@ function CursorFlowPreviewContent() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState(false);
   
-  // State for AI text generation
-  const [isGeneratingText, setIsGeneratingText] = useState(false);
+  // State for AI text generation - now per step
+  const [generatingSteps, setGeneratingSteps] = useState<Set<string>>(new Set());
   const [textGenerationProgress, setTextGenerationProgress] = useState(0);
 
   // Add state for tracking drag operations
@@ -119,7 +118,9 @@ function CursorFlowPreviewContent() {
       
       console.log(`[TEXT_GENERATION] Found ${stepsNeedingAI.length} steps needing AI generation`);
       
-      setIsGeneratingText(true);
+      // Mark all steps that need generation as generating
+      const stepsNeedingGenerationSet = new Set<string>(stepsNeedingAI.map((step: any) => step.id));
+      setGeneratingSteps(stepsNeedingGenerationSet);
       setTextGenerationProgress(0);
       
       // Process each step individually
@@ -138,11 +139,6 @@ function CursorFlowPreviewContent() {
           
           if (stepResult.success) {
             console.log(`[TEXT_GENERATION] Step ${step.id} processed successfully`);
-            completedSteps++;
-            
-            // Update progress
-            const progress = Math.round((completedSteps / stepsNeedingAI.length) * 100);
-            setTextGenerationProgress(progress);
             
             // Update the step text in the UI immediately
             if (stepResult.annotation_text) {
@@ -151,30 +147,59 @@ function CursorFlowPreviewContent() {
                 [step.id]: stepResult.annotation_text
               }));
             }
+            
+            // Remove this step from generating set
+            setGeneratingSteps(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(step.id);
+              return newSet;
+            });
           } else {
             console.warn(`[TEXT_GENERATION] Failed to process step ${step.id}:`, stepResult.error);
-            completedSteps++; // Still count as completed since it's one-time attempt
+            // Remove from generating set even if failed
+            setGeneratingSteps(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(step.id);
+              return newSet;
+            });
           }
+          
+          completedSteps++;
+          
+          // Update progress
+          const progress = Math.round((completedSteps / stepsNeedingAI.length) * 100);
+          setTextGenerationProgress(progress);
           
         } catch (stepError) {
           console.error(`[TEXT_GENERATION] Error processing step ${step.id}:`, stepError);
-          completedSteps++; // Still count as completed
+          completedSteps++;
+          
+          // Remove from generating set on error
+          setGeneratingSteps(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(step.id);
+            return newSet;
+          });
+          
+          // Update progress
+          const progress = Math.round((completedSteps / stepsNeedingAI.length) * 100);
+          setTextGenerationProgress(progress);
         }
-        
-        // Update progress after each step
-        const progress = Math.round((completedSteps / stepsNeedingAI.length) * 100);
-        setTextGenerationProgress(progress);
       }
       
       console.log(`[TEXT_GENERATION] Text generation complete! ${completedSteps}/${stepsNeedingAI.length} steps processed`);
-      setIsGeneratingText(false);
       
-      setSuccessMessage('AI tooltips generated successfully!');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      // Clear all generating states
+      setGeneratingSteps(new Set());
+      
+      if (completedSteps > 0) {
+        setSuccessMessage('AI tooltips generated successfully!');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
       
     } catch (error) {
       console.error('[TEXT_GENERATION] Error triggering text generation:', error);
-      setIsGeneratingText(false);
+      setGeneratingSteps(new Set());
     }
   };
   
@@ -232,17 +257,22 @@ function CursorFlowPreviewContent() {
           }
         });
         setStepTexts(textMap);
-        
-        // Check if we need to trigger text generation
-        await checkAndTriggerTextGeneration(flowData);
       }
+      
       // Initialize flow description state
       setFlowDescription(flowData?.description || '');
       setEditableFlowName(flowData?.name || flowName);
+      
+      // Set loading to false first, then start text generation in background
+      setIsLoading(false);
+      
+      // Start text generation in background - don't await it
+      if (stepsData) {
+        checkAndTriggerTextGeneration(flowData);
+      }
     } catch (error) {
       console.error('Error loading cursor flow:', error);
       setError('An error occurred while loading the cursor flow');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -982,10 +1012,10 @@ function CursorFlowPreviewContent() {
           />
         )}
         
-        {isGeneratingText && (
+        {generatingSteps.size > 0 && (
           <Alert
             title={`Generating AI tooltips... ${textGenerationProgress}%`}
-            description="AI is analyzing screenshots to create helpful tooltips for each step."
+            description={`AI is analyzing screenshots to create helpful tooltips. ${generatingSteps.size} tooltips remaining.`}
             actions={
               <div className="flex items-center gap-2">
                 <div className="w-32 bg-neutral-200 rounded-full h-2">
@@ -1095,34 +1125,34 @@ function CursorFlowPreviewContent() {
                       <div className="flex w-full flex-col items-start gap-4 px-4 py-4">
                         <TextField
                           label="Cursor Text"
-                          helpText={isGeneratingText ? "AI is generating tooltip..." : ""}
+                          helpText={generatingSteps.has(clickStep.id) ? "AI is generating tooltip..." : ""}
                           icon="FeatherMousePointer2"
                           className="w-full"
                         >
                           <TextField.Input
                             placeholder={
-                              isGeneratingText 
+                              generatingSteps.has(clickStep.id) 
                                 ? "AI is generating tooltip..." 
                                 : "Add a description for this click"
                             }
                             value={
-                              isGeneratingText && !stepTexts[clickStep.id]
+                              generatingSteps.has(clickStep.id) && !stepTexts[clickStep.id]
                                 ? "Generating..." 
                                 : (stepTexts[clickStep.id] || '')
                             }
                             onChange={(e) => {
-                              if (flow.status === 'draft' && !isGeneratingText) {
+                              if (flow.status === 'draft' && !generatingSteps.has(clickStep.id)) {
                                 handleTextChange(clickStep.id, e.target.value);
                               }
                             }}
                             onBlur={() => {
-                              if (flow.status === 'draft' && !isGeneratingText) {
+                              if (flow.status === 'draft' && !generatingSteps.has(clickStep.id)) {
                                 saveAnnotation(clickStep.id);
                               }
                             }}
-                            disabled={flow.status !== 'draft' || isGeneratingText}
-                            readOnly={flow.status !== 'draft' || isGeneratingText}
-                            className={`w-full ${isGeneratingText && !stepTexts[clickStep.id] ? 'animate-pulse bg-neutral-50' : ''}`}
+                            disabled={flow.status !== 'draft' || generatingSteps.has(clickStep.id)}
+                            readOnly={flow.status !== 'draft' || generatingSteps.has(clickStep.id)}
+                            className={`w-full ${generatingSteps.has(clickStep.id) && !stepTexts[clickStep.id] ? 'animate-pulse bg-neutral-50' : ''}`}
                           />
                         </TextField>
                       </div>
