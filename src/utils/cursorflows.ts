@@ -729,7 +729,7 @@ export async function createCursorFlowRequest(
 }
 
 /**
- * Generate text for cursor flow steps using Gemini
+ * Generate text for cursor flow steps using OpenAI (granular approach)
  * @param flowId - The ID of the cursor flow to process
  * @returns Promise with the result of the operation
  */
@@ -746,24 +746,50 @@ export const generateCursorFlowText = async (
       throw new Error('API base URL not configured');
     }
     
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/generate-text`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ flowId }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // Get steps that need AI generation
+    const stepsResponse = await fetch(`${API_BASE_URL}/api/dashboard/flows/${flowId}/steps-needing-ai`);
+    const stepsResult = await stepsResponse.json();
+    
+    if (!stepsResult.success) {
+      throw new Error(stepsResult.error || 'Failed to get steps needing AI');
     }
-
-    const result = await response.json();
+    
+    const stepsNeedingAI = stepsResult.steps || [];
+    
+    if (stepsNeedingAI.length === 0) {
+      return { 
+        success: true, 
+        message: 'No steps need AI generation',
+        processedCount: 0
+      };
+    }
+    
+    // Process each step individually
+    let processedCount = 0;
+    
+    for (const step of stepsNeedingAI) {
+      try {
+        const stepResponse = await fetch(`${API_BASE_URL}/api/dashboard/steps/${step.id}/generate-text`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const stepResult = await stepResponse.json();
+        
+        if (stepResult.success) {
+          processedCount++;
+        }
+        
+      } catch (stepError) {
+        console.warn(`Failed to process step ${step.id}:`, stepError);
+        // Continue with other steps
+      }
+    }
     
     return { 
       success: true,
-      message: result.message,
-      processedCount: result.processedCount || 0
+      message: `AI text generation completed for ${processedCount}/${stepsNeedingAI.length} steps`,
+      processedCount
     };
   } catch (error) {
     console.error('Error triggering text generation:', error);

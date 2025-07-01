@@ -94,91 +94,86 @@ function CursorFlowPreviewContent() {
   // Function to check if text generation is needed and trigger it
   const checkAndTriggerTextGeneration = async (flowData: any) => {
     try {
-      // Check if AI generation has already been attempted for this flow
-      if (flowData.ai_generation_attempted) {
-        console.log('[TEXT_GENERATION] AI generation already attempted for this flow');
-        return;
-      }
-      
       if (!API_BASE_URL) {
         console.error('[TEXT_GENERATION] API base URL not configured');
         return;
       }
       
-      console.log('[TEXT_GENERATION] Flow needs AI text generation');
+      console.log('[TEXT_GENERATION] Checking for steps needing AI generation');
+      
+      // Get steps that need AI generation
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/${flowData.id}/steps-needing-ai`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        console.error('[TEXT_GENERATION] Failed to get steps needing AI:', result.error);
+        return;
+      }
+      
+      const stepsNeedingAI = result.steps || [];
+      
+      if (stepsNeedingAI.length === 0) {
+        console.log('[TEXT_GENERATION] No steps need AI generation');
+        return;
+      }
+      
+      console.log(`[TEXT_GENERATION] Found ${stepsNeedingAI.length} steps needing AI generation`);
       
       setIsGeneratingText(true);
       setTextGenerationProgress(0);
       
-      // Call API to start text generation
-      const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/generate-text`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flowId: flowData.id })
-      });
+      // Process each step individually
+      let completedSteps = 0;
       
-      const result = await response.json();
-      
-      if (!result.success) {
-        console.error('[TEXT_GENERATION] Failed to start text generation:', result.error);
-        setIsGeneratingText(false);
-        return;
+      for (const step of stepsNeedingAI) {
+        try {
+          console.log(`[TEXT_GENERATION] Processing step ${step.id}...`);
+          
+          const stepResponse = await fetch(`${API_BASE_URL}/api/dashboard/steps/${step.id}/generate-text`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          const stepResult = await stepResponse.json();
+          
+          if (stepResult.success) {
+            console.log(`[TEXT_GENERATION] Step ${step.id} processed successfully`);
+            completedSteps++;
+            
+            // Update progress
+            const progress = Math.round((completedSteps / stepsNeedingAI.length) * 100);
+            setTextGenerationProgress(progress);
+            
+            // Update the step text in the UI immediately
+            if (stepResult.annotation_text) {
+              setStepTexts(prev => ({
+                ...prev,
+                [step.id]: stepResult.annotation_text
+              }));
+            }
+          } else {
+            console.warn(`[TEXT_GENERATION] Failed to process step ${step.id}:`, stepResult.error);
+            completedSteps++; // Still count as completed since it's one-time attempt
+          }
+          
+        } catch (stepError) {
+          console.error(`[TEXT_GENERATION] Error processing step ${step.id}:`, stepError);
+          completedSteps++; // Still count as completed
+        }
+        
+        // Update progress after each step
+        const progress = Math.round((completedSteps / stepsNeedingAI.length) * 100);
+        setTextGenerationProgress(progress);
       }
       
-      if (result.alreadyComplete) {
-        console.log('[TEXT_GENERATION] Text generation already complete');
-        setIsGeneratingText(false);
-        return;
-      }
+      console.log(`[TEXT_GENERATION] Text generation complete! ${completedSteps}/${stepsNeedingAI.length} steps processed`);
+      setIsGeneratingText(false);
       
-      console.log(`[TEXT_GENERATION] Started text generation for ${result.stepsToProcess} steps`);
-      
-      // Start polling for completion
-      pollTextGenerationStatus(flowData.id);
+      setSuccessMessage('AI tooltips generated successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
       
     } catch (error) {
       console.error('[TEXT_GENERATION] Error triggering text generation:', error);
-      setIsGeneratingText(false);
-    }
-  };
-  
-  // Function to poll text generation status
-  const pollTextGenerationStatus = async (flowId: string) => {
-    try {
-      if (!API_BASE_URL) {
-        console.error('[TEXT_GENERATION] API base URL not configured');
-        setIsGeneratingText(false);
-        return;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/api/dashboard/flows/${flowId}/text-generation-status`);
-      const result = await response.json();
-      
-      if (!result.success) {
-        console.error('[TEXT_GENERATION] Error checking status:', result.error);
-        setIsGeneratingText(false);
-        return;
-      }
-      
-      setTextGenerationProgress(result.progress);
-      
-             if (result.isComplete) {
-         console.log(`[TEXT_GENERATION] Text generation complete! ${result.completedSteps}/${result.totalSteps} steps processed`);
-         setIsGeneratingText(false);
-         
-         // Reload the flow data to get the updated annotation texts
-         await reloadFlowData(flowId);
-         
-         setSuccessMessage('AI tooltips generated successfully!');
-         setTimeout(() => setSuccessMessage(null), 3000);
-       } else {
-        console.log(`[TEXT_GENERATION] Progress: ${result.completedSteps}/${result.totalSteps} (${result.progress}%)`);
-        // Continue polling
-        setTimeout(() => pollTextGenerationStatus(flowId), 2000);
-      }
-      
-    } catch (error) {
-      console.error('[TEXT_GENERATION] Error polling status:', error);
       setIsGeneratingText(false);
     }
   };
